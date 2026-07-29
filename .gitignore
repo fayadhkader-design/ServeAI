@@ -1,0 +1,45 @@
+# macOS and Xcode
+.DS_Store
+*.xcuserstate
+xcuserdata/
+DerivedData/
+*.xcarchive
+*.ipa
+.swiftpm/
+.build/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# Secrets and signing material
+.env
+.env.*
+*.p12
+*.cer
+*.pem
+*.key
+*.mobileprovision
+AppStore/ExportOptions.plist
+
+# Generated development output
+work/
+outputs/
+
+# Local annotation state
+AnnotationPortal/data/*
+!AnnotationPortal/data/.gitkeep
+
+# Private participant media and generated research artifacts
+Training/calibration/
+Training/data/*
+!Training/data/.gitkeep
+Training/artifacts/*
+!Training/artifacts/.gitkeep
+ServeAITests/Fixtures/*.mp4
+ServeAI/Resources/Models/*.mlmodel
+ServeAI/Resources/Models/*.mlpackage
+ServeAI/Resources/Models/*.mlmodelc
