@@ -80,7 +80,7 @@ python3 Training/generate_pseudo_coach_dataset.py
 python3 Training/train_pseudo_coach_baseline.py
 ```
 
-The distilled model currently reaches 0.086-second phase-boundary error, 0.88-point pseudo-technique-rating error, and 67% top-priority agreement on a six-cycle test time block from the same athlete. This measures agreement with the rule teacher, not agreement with a coach. It misses ServeAI's technique and priority gates and has no new-player test, so it is not integrated into the app. See `PSEUDO_COACH_MODEL_CARD.md` and the self-contained visual audit in `outputs/serveai-pseudo-label-review.html`.
+The distilled model currently reaches 0.086-second phase-boundary error, 0.88-point pseudo-technique-rating error, and 67% top-priority agreement on a six-cycle test time block from the same athlete. This measures agreement with the rule teacher, not agreement with a coach. It misses ServeAI's technique and priority gates and has no new-player test, so it is not integrated into the app. See `PSEUDO_COACH_MODEL_CARD.md`; `build_pseudo_label_review.py` can generate the gitignored local visual audit.
 
 ## Multi-player THETIS research model and Core ML conversion
 
@@ -106,7 +106,7 @@ PYTHONPATH=work/coremltools:Training \
 python3 Training/build_thetis_model_review.py
 ```
 
-On 93 clips from 11 unseen players, the model reaches 0.104-second pseudo-boundary MAE, 0.92-point pseudo-technique-rating MAE, and 46% pseudo-priority agreement. Only the phase timing subset passes. Core ML conversion parity passes at 5.61e-7 maximum absolute error. The `.mlmodel` is available only in Debug behind `SERVEAI_ANALYSIS_MODE=experimentalcoreml`; it is never the default, every report is labeled experimental, and the artifact remains `releaseEligible: false`, `coachVerified: false`, and `commercialUseCleared: false`. The Release target excludes and guards it so research-only, commercially uncleared weights cannot ship. See `THETIS_PSEUDO_COACH_MODEL_CARD.md` and `outputs/serveai-multiplayer-model-audit.html`.
+On 93 clips from 11 unseen players, the model reaches 0.104-second pseudo-boundary MAE, 0.92-point pseudo-technique-rating MAE, and 46% pseudo-priority agreement. Only the phase timing subset passes. Core ML conversion parity passes at 5.61e-7 maximum absolute error. The `.mlmodel` is available only in local Debug experiments behind `SERVEAI_ANALYSIS_MODE=experimentalcoreml`; it is never the default, every report is labeled experimental, and the artifact remains `releaseEligible: false`, `coachVerified: false`, and `commercialUseCleared: false`. The Release target excludes and guards it so research-only, commercially uncleared weights cannot ship. See `THETIS_PSEUDO_COACH_MODEL_CARD.md`; `build_thetis_model_review.py` can regenerate the gitignored local visual audit.
 
 ## Cryptographic production promotion
 
