@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "datasets": [
+    {
+      "id": "tennis-player-actions-v1",
+      "title": "Tennis Player Actions Dataset for Human Pose Estimation",
+      "doi": "10.17632/nv3rpsxhhk.1",
+      "source": "https://data.mendeley.com/datasets/nv3rpsxhhk/1",
+      "license": "CC-BY-4.0",
+      "allowedUse": "training-with-attribution",
+      "scope": "2,000 COCO pose annotations: backhand, forehand, ready position, and serve",
+      "knownLimitations": [
+        "All images come from one recorded athlete.",
+        "Frames are extracted from video and are not independent samples.",
+        "There are no serve-phase, technique-quality, racket, ball, or coaching labels."
+      ],
+      "files": [
+        {
+          "path": "data/raw/tennis_player_actions/annotations/backhand.json",
+          "url": "https://data.mendeley.com/public-files/datasets/nv3rpsxhhk/files/9a7da959-321e-49e8-81ee-5604a2b4a286/file_downloaded",
+          "sha256": "1e745b77452b5897e45d20b994cf5555bd0a73aa8872353e6f77c9210eea2612"
+        },
+        {
+          "path": "data/raw/tennis_player_actions/annotations/forehand.json",
+          "url": "https://data.mendeley.com/public-files/datasets/nv3rpsxhhk/files/0a15fd5e-ab84-4f5f-9c9c-93a61991c790/file_downloaded",
+          "sha256": "a84e883d7fdb027344933adfad846d533544a4d96a9ca460b4379e1d3e614c9b"
+        },
+        {
+          "path": "data/raw/tennis_player_actions/annotations/ready_position.json",
+          "url": "https://data.mendeley.com/public-files/datasets/nv3rpsxhhk/files/1f348f01-d6db-452d-a6a1-2e3a8fc53880/file_downloaded",
+          "sha256": "0382185490117adf4240c47875ab7c14c2bd5b81af0c96132a2ba8ad87534b14"
+        },
+        {
+          "path": "data/raw/tennis_player_actions/annotations/serve.json",
+          "url": "https://data.mendeley.com/public-files/datasets/nv3rpsxhhk/files/317c871c-b233-4bfa-9da0-01bebc87c4a3/file_downloaded",
+          "sha256": "aeb356d4c2a4801a22ff5819d852a903b2a5b33fbfc913c597abdd4f74d3e589"
+        }
+      ]
+    },
+    {
+      "id": "bath-serve-outcomes-v1",
+      "title": "Dataset for Exploratory Proof-of-Concept: Predicting the Outcome of Tennis Serves Using Motion Capture and Deep Learning",
+      "doi": "10.15125/BATH-01454",
+      "source": "https://researchdata.bath.ac.uk/1454/",
+      "license": "CC-BY-4.0",
+      "allowedUse": "research-and-training-with-attribution",
+      "scope": "Marker-based 3D serve trajectories and in/out/net outcome labels",
+      "knownLimitations": [
+        "The associated study recruited only two right-handed male participants in one indoor environment.",
+        "The downloaded archive currently contains 42 motion files but only 41 outcome rows; 4D_115 has no matching outcome and must be excluded from supervised work.",
+        "Its markers do not match the Apple Vision 2D joint contract.",
+        "Outcomes are not technique-quality or coach-priority labels."
+      ],
+      "files": [
+        {
+          "path": "data/raw/bath_serve_outcomes/Spatio-Temporal-Serve-Data.zip",
+          "url": "https://researchdata.bath.ac.uk/1454/5/Spatio-Temporal%20Serve%20Data.zip",
+          "sha256": "b957b8270d66b3018395b20a720969a798b680e989aaf1b081361559967263f5"
+        },
+        {
+          "path": "data/raw/bath_serve_outcomes/Data-Labels.xlsx.zip",
+          "url": "https://researchdata.bath.ac.uk/1454/6/Data%20Labels.xlsx.zip",
+          "sha256": "5e5208643faf353238db195b722b1102afc1a4a52b7c5c193c7492fa2ea8d929"
+        }
+      ]
+    },
+    {
+      "id": "tennis-shot-side-top-view-v1",
+      "title": "Tennis Shot Side-View and Top-View Data Set for 3D Reconstruction and Player Analysis in Tennis",
+      "doi": "10.17632/75m8vz7jr2.1",
+      "source": "https://data.mendeley.com/datasets/75m8vz7jr2/1",
+      "license": "CC-BY-4.0",
+      "allowedUse": "research-only-pending-serve-content-audit",
+      "scope": "472 paired side/top-view tennis-shot clips with landing coordinates",
+      "knownLimitations": [
+        "The public description identifies straight and cross-court shots, not serve repetitions or serve technique labels.",
+        "The 12.42 GB archive was not ingested because it does not establish that the clips match ServeAI's serve-only task.",
+        "Landing coordinates are not coaching-quality or phase labels."
+      ]
+    },
+    {
+      "id": "penn-action",
+      "title": "Penn Action Dataset",
+      "source": "https://dreamdragon.github.io/PennAction/",
+      "license": "not-stated-on-official-page",
+      "allowedUse": "blocked-pending-written-permission",
+      "scope": "2,326 action videos including tennis serves with per-frame 2D pose labels"
+    },
+    {
+      "id": "thetis",
+      "title": "THETIS: Three-dimensional Tennis Shots",
+      "source": "https://github.com/THETIS-dataset/dataset",
+      "license": "custom-research-only-per-author-paper",
+      "allowedUse": "research-only-not-for-commercial-shipping",
+      "scope": "495 RGB serve clips from 55 subjects across flat, kick, and slice classes; 494 unique source videos after one exact duplicate is excluded",
+      "localManifest": "artifacts/thetis_source_manifest.json",
+      "knownLimitations": [
+        "The authors describe the dataset as freely available for research purposes; no commercial-use grant is stated.",
+        "The footage is frontal Kinect RGB, outside ServeAI's supported side and rear iPhone views.",
+        "Actions are staged indoors without a ball, so true toss and contact events are unavailable.",
+        "The dataset provides serve classes and participant groups, not phase, technique-quality, or coaching-priority labels.",
+        "p55_serflat_s2.avi and p55_serflat_s3.avi are byte-for-byte identical and one is excluded."
+      ]
+    },
+    {
+      "id": "sportspose",
+      "title": "SportsPose",
+      "doi": "10.11583/DTU.29382803",
+      "source": "https://orbit.dtu.dk/en/datasets/the-sportspose-dataset/",
+      "license": "custom-academic-use",
+      "allowedUse": "blocked-for-shipping-without-separate-permission",
+      "scope": "176,000 markerless 3D sports poses across 24 subjects and five sports"
+    },
+    {
+      "id": "athletepose3d",
+      "title": "AthletePose3D",
+      "source": "https://github.com/calvinyeungck/AthletePose3D",
+      "license": "non-commercial-scientific-use",
+      "allowedUse": "blocked-for-commercial-shipping",
+      "scope": "High-speed sports 3D human poses and pretrained checkpoints"
+    }
+  ]
+}

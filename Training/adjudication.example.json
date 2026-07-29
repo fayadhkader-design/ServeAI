@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 3,
+  "rubric": {
+    "identifier": "serveai.single-serve-observational",
+    "version": "1.0.0",
+    "sha256": "5a28ab5084f931116f4056493df1ba39f78b14c852a9f671cfc393cbb2d61741"
+  },
+  "adjudicationID": "replace-with-uuid",
+  "analysisID": "replace-with-analysis-uuid",
+  "sourceAnnotationIDs": [
+    "replace-with-first-annotation-uuid",
+    "replace-with-second-annotation-uuid"
+  ],
+  "adjudicatorPseudonym": "coach-003",
+  "createdAt": "2026-07-26T18:00:00Z",
+  "collectionMetadata": {
+    "dominantHand": "right",
+    "environment": "outdoor",
+    "lighting": "evenDaylight",
+    "sourceDeviceCategory": "iPhone",
+    "sourceDeviceModel": "iPhone 15 Pro",
+    "subjectContrast": "typical",
+    "recordingIssueTags": [],
+    "videoWidth": 1920,
+    "videoHeight": 1080,
+    "nominalFrameRate": 60
+  },
+  "isVideoUsable": true,
+  "unusableReason": null,
+  "phaseBoundaries": [],
+  "techniqueRatings": [],
+  "topPriority": null,
+  "decisionNotes": "Explain why every disputed value was selected. Complete all phase and technique decisions before signing."
+}

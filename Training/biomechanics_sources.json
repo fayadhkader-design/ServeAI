@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "teacherIdentifier": "serveai.biomechanics-pseudo-labeler",
+  "teacherVersion": "0.1.0-research",
+  "sources": [
+    {
+      "id": "kovacs-ellenbecker-2011",
+      "title": "An 8-Stage Model for Evaluating the Tennis Serve: Implications for Performance Enhancement and Injury Prevention",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3445225/",
+      "doi": "10.1177/1941738111414175",
+      "usedFor": [
+        "Preparation, acceleration, and follow-through phase organization",
+        "Whole-body kinetic-chain interpretation"
+      ]
+    },
+    {
+      "id": "jacquier-bret-gorce-2024",
+      "title": "Kinematics characteristics of key point of interest during tennis serve among tennis players: a systematic review and meta-analysis",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11260724/",
+      "doi": "10.3389/fspor.2024.1432030",
+      "usedFor": [
+        "Consensus event vocabulary: ball release, trophy position, racket low point, and ball impact",
+        "Explicit warning that joint-angle definitions vary between studies"
+      ]
+    },
+    {
+      "id": "wood-et-al-2023-expert-eye",
+      "title": "The expert eye? An inter-rater comparison of elite tennis serve kinematics and performance",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/38155177/",
+      "doi": "10.1080/02640414.2023.2298102",
+      "usedFor": [
+        "Evidence that trained observers can reach strong agreement on broad 2D serve features such as rhythm, trunk action, and leg drive",
+        "Caution that fine rotational judgments such as shoulder internal-rotation speed are less reliably rated from 2D replay"
+      ]
+    },
+    {
+      "id": "sosa-carrillo-et-al-2024-optoelectronic",
+      "title": "Kinematics of the Tennis Serve Using an Optoelectronic Motion Capture System: Are There Correlations between Joint Angles and Racket Velocity?",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11175047/",
+      "doi": "10.3390/sports12060153",
+      "usedFor": [
+        "Broad trophy-position and impact elbow-angle plausibility ranges",
+        "Separation of trophy position, racket low point, and ball impact"
+      ]
+    },
+    {
+      "id": "mendes-et-al-2024",
+      "title": "The Influence of Kinematics on Tennis Serve Speed: An In-Depth Analysis Using Xsens MVN Biomech Link Technology",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11504545/",
+      "doi": "10.3390/bioengineering11100971",
+      "usedFor": [
+        "Observable loading, cocking, impact, and follow-through event ordering",
+        "Caution that serve-event characterization still lacks complete consensus"
+      ]
+    },
+    {
+      "id": "wang-et-al-2024-dataset",
+      "title": "Tennis Player Actions Dataset for Human Pose Estimation",
+      "url": "https://data.mendeley.com/datasets/nv3rpsxhhk/1",
+      "doi": "10.17632/nv3rpsxhhk.1",
+      "license": "CC BY 4.0",
+      "usedFor": [
+        "500 sequential serve frames with COCO/OpenPose-style body keypoints",
+        "Research-only pose and temporal weak supervision"
+      ]
+    }
+  ],
+  "measurementPolicy": {
+    "observable": [
+      "2D joint visibility",
+      "2D knee and elbow angles",
+      "2D shoulder-line tilt",
+      "body-center rise",
+      "body-center position relative to the visible feet",
+      "overhead wrist-height event proxy"
+    ],
+    "notObservable": [
+      "True ball-racket impact",
+      "Racket-head low point",
+      "Racket-head speed",
+      "Ball speed or placement",
+      "Forearm pronation",
+      "Exact 3D shoulder, pelvis, or trunk rotation",
+      "Injury risk or medical conclusions"
+    ],
+    "releasePolicy": "Pseudo-label agreement measures whether a student model learned this rule set. It is not coach agreement and can never satisfy ServeAI's production accuracy gates."
+  }
+}

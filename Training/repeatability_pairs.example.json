@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "appBuildIdentifier": "com.serveai.app/1.0(42)",
+  "pairs": [
+    {
+      "analysisID": "held-out-dataset-analysis-id-001",
+      "firstTask": "signed-native-runs/player-001-serve-001-first.json",
+      "repeatedTask": "signed-native-runs/player-001-serve-001-repeat.json"
+    }
+  ]
+}

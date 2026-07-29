@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "registryID": "replace-with-task-coordinator-registry-id",
+  "issuedAt": "2026-07-26T20:00:00Z",
+  "coordinators": [
+    {
+      "coordinatorID": "coordinator-001",
+      "status": "active",
+      "organization": "Replace with accountable study organization",
+      "role": "Dataset collection coordinator",
+      "authorizedFrom": "2026-07-26T20:00:00Z",
+      "expiresAt": "2027-07-26T20:00:00Z",
+      "signerKeyID": "replace-with-64-character-key-fingerprint-from-task-json",
+      "publicKeyX963": "replace-with-publicKeyX963-from-task-json"
+    }
+  ]
+}

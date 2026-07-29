@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "registryID": "replace-with-study-registry-id",
+  "issuedAt": "2026-07-26T18:00:00Z",
+  "coaches": [
+    {
+      "coachID": "coach-001",
+      "status": "active",
+      "qualification": "Replace with verified qualification",
+      "expiresAt": "2027-07-26T18:00:00Z",
+      "publicKeyPEM": "-----BEGIN PUBLIC KEY-----\nREPLACE_WITH_COACH_PUBLIC_KEY\n-----END PUBLIC KEY-----\n"
+    }
+  ]
+}

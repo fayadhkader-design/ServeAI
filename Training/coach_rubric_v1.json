@@ -1,0 +1,102 @@
+{
+  "rubricIdentifier": "serveai.single-serve-observational",
+  "rubricVersion": "1.0.0",
+  "scope": {
+    "capture": "One normal-speed tennis serve recorded from the declared side or rear view.",
+    "claim": "Ordinal expert observation from 2D video; not a biomechanical measurement, diagnosis, injury-risk assessment, or probability of correctness.",
+    "visibilityRule": "Mark not visible unless every named cue needed for that technique can be followed through its relevant phase. Never infer a hidden ball, joint, foot, racket, or contact event.",
+    "consistencyRule": "A single serve cannot establish repeatability or toss consistency. The toss label assesses placement in this repetition only.",
+    "priorityRule": "Choose one visible technique with the lowest rating. If several tie, choose the clearest actionable issue; never prioritize an invisible label."
+  },
+  "ratingScale": [
+    {
+      "rating": 1,
+      "anchor": "Clear major breakdown",
+      "definition": "The visible criterion is largely absent or materially disrupts the observed sequence."
+    },
+    {
+      "rating": 2,
+      "anchor": "Material limitation",
+      "definition": "Part of the criterion is present, but a clear visible fault substantially limits the sequence."
+    },
+    {
+      "rating": 3,
+      "anchor": "Mixed or adequate",
+      "definition": "The criterion is present and usable, with an observable limitation that does not dominate the motion."
+    },
+    {
+      "rating": 4,
+      "anchor": "Well organized",
+      "definition": "The visible criterion supports the sequence with only a minor observable limitation."
+    },
+    {
+      "rating": 5,
+      "anchor": "Clearly strong",
+      "definition": "The criterion is visibly well organized and no material fault is apparent in this repetition."
+    }
+  ],
+  "techniques": [
+    {
+      "label": "tossPlacement",
+      "title": "Toss placement",
+      "observe": "From release toward the contact window, judge whether the visible ball path gives the player reachable space to extend upward without an obvious chase or collapse.",
+      "requiredVisibility": "Ball from release through late ascent, tossing hand, head, hitting shoulder, and a readable court-forward direction.",
+      "doNotInfer": "Do not rate toss consistency, exact release angle, spin, or an unseen contact point."
+    },
+    {
+      "label": "loadingSequence",
+      "title": "Loading sequence",
+      "observe": "Judge whether lower-body flexion and trunk organization build before the upward drive rather than occurring after or independently of it.",
+      "requiredVisibility": "Hips, both knees, both ankles, trunk, and the loading-to-drive transition.",
+      "doNotInfer": "Do not estimate force, power, or precise joint angles from 2D video."
+    },
+    {
+      "label": "trophyAlignment",
+      "title": "Trophy organization",
+      "observe": "At the visible trophy event, judge the coordinated organization of trunk, shoulders, tossing arm, and hitting elbow without requiring one cosmetic pose.",
+      "requiredVisibility": "Trunk, both shoulders, tossing elbow/wrist, and hitting elbow/wrist around trophy.",
+      "doNotInfer": "Do not rate shoulder internal-rotation speed, hidden racket orientation, or impose one style on every player."
+    },
+    {
+      "label": "legDriveTiming",
+      "title": "Leg-drive timing",
+      "observe": "Judge whether knee extension follows the load and contributes to upward movement before the visible contact window.",
+      "requiredVisibility": "Both hips, knees, ankles, feet, trunk, and the load-through-upward-drive interval.",
+      "doNotInfer": "Do not estimate ground-reaction force, jump power, or ball speed."
+    },
+    {
+      "label": "contactReach",
+      "title": "Contact reach",
+      "observe": "At the visible contact event, judge apparent upward reach, hitting-arm extension, head stability, and body organization around the ball.",
+      "requiredVisibility": "Ball at contact, hitting wrist/elbow/shoulder, head, trunk, and front foot.",
+      "doNotInfer": "If ball-racket contact is not visible, mark not visible; do not substitute an overhead wrist proxy or estimate exact angles."
+    },
+    {
+      "label": "landingBalance",
+      "title": "Landing balance",
+      "observe": "Judge whether the player lands under control and organizes momentum toward the court through the early recovery.",
+      "requiredVisibility": "Both feet, ankles, knees, hips, and trunk from takeoff through initial stabilization.",
+      "doNotInfer": "Do not diagnose injury risk or penalize a safe individual style solely for differing from an exemplar."
+    }
+  ],
+  "evidenceSources": [
+    {
+      "title": "The expert eye? An inter-rater comparison of elite tennis serve kinematics and performance",
+      "doi": "10.1080/02640414.2023.2298102",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/38155177/",
+      "use": "Supports expert 2D observational rating for broad serve features and cautions that some rotational judgments are less reliable."
+    },
+    {
+      "title": "Kinematics characteristics of key point of interest during tennis serve among tennis players: a systematic review and meta-analysis",
+      "doi": "10.3389/fspor.2024.1432030",
+      "url": "https://www.frontiersin.org/journals/sports-and-active-living/articles/10.3389/fspor.2024.1432030/full",
+      "use": "Supports event-centered observation and documents heterogeneous methods and definitions across serve-kinematics studies."
+    },
+    {
+      "title": "An 8-Stage Model for Evaluating the Tennis Serve",
+      "doi": "10.1177/1941738111414175",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3445225/",
+      "use": "Provides the stage and kinetic-chain framework used to organize observable cues."
+    }
+  ]
+}

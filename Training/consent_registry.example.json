@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "registryID": "replace-with-study-consent-registry-id",
+  "issuedAt": "2026-07-26T18:00:00Z",
+  "authorities": [
+    {
+      "authorityID": "privacy-admin-001",
+      "status": "active",
+      "organization": "Replace with the accountable data controller",
+      "role": "Replace with verified consent/privacy authority",
+      "expiresAt": "2027-07-26T18:00:00Z",
+      "publicKeyPEM": "-----BEGIN PUBLIC KEY-----\nREPLACE_WITH_AUTHORITY_PUBLIC_KEY\n-----END PUBLIC KEY-----\n"
+    }
+  ]
+}

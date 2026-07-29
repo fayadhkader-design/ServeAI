@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "consentReceiptID": "replace-with-immutable-receipt-uuid",
+  "consentRecordID": "copy-the-record-id-from-the-annotation-export",
+  "participantPseudonym": "player-001",
+  "authorityID": "privacy-admin-001",
+  "decision": "granted",
+  "occurredAt": "2026-07-26T18:00:00Z",
+  "supersedesReceiptID": null,
+  "consentVersion": "2026-07",
+  "notice": {
+    "identifier": "serveai.research-consent",
+    "version": "2026-07",
+    "documentSHA256": "replace-with-lowercase-sha256-of-the-exact-notice-shown"
+  },
+  "affirmativeActionSHA256": "replace-with-lowercase-sha256-of-the-signed-or-submitted-consent-record",
+  "ageAssurance": "adultConfirmed",
+  "purposes": [
+    "serveModelTraining",
+    "serveModelEvaluation"
+  ],
+  "dataCategories": [
+    "serveVideo",
+    "bodyPoseFeatures",
+    "coachAnnotations"
+  ],
+  "coveredVideoSHA256": [
+    "replace-with-source-video-sha256-from-the-annotation"
+  ],
+  "validUntil": "2027-07-26T18:00:00Z",
+  "retentionUntil": "2027-07-26T18:00:00Z",
+  "withdrawalMechanism": "Replace with the actual participant-facing withdrawal route"
+}
