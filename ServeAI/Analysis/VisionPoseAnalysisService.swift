@@ -10,6 +10,7 @@ struct VisionPoseAnalysisService: ServeAnalysisService {
     private let confidenceCalculator: any AnalysisConfidenceCalculating
     private let feedbackGenerator: any ServeFeedbackGenerating
     private let videoHasher: any VideoContentHashing
+    private let ambiguityPolicy: PoseAmbiguityPolicy
 
     init(
         frameExtractor: any VideoFrameExtracting,
@@ -19,7 +20,8 @@ struct VisionPoseAnalysisService: ServeAnalysisService {
         metricsCalculator: any ServeMetricsCalculating,
         confidenceCalculator: any AnalysisConfidenceCalculating,
         feedbackGenerator: any ServeFeedbackGenerating,
-        videoHasher: any VideoContentHashing = SHA256VideoContentHasher()
+        videoHasher: any VideoContentHashing = SHA256VideoContentHasher(),
+        ambiguityPolicy: PoseAmbiguityPolicy = PoseAmbiguityPolicy()
     ) {
         self.frameExtractor = frameExtractor
         self.poseDetector = poseDetector
@@ -29,6 +31,7 @@ struct VisionPoseAnalysisService: ServeAnalysisService {
         self.confidenceCalculator = confidenceCalculator
         self.feedbackGenerator = feedbackGenerator
         self.videoHasher = videoHasher
+        self.ambiguityPolicy = ambiguityPolicy
     }
 
     func analyze(
@@ -40,15 +43,31 @@ struct VisionPoseAnalysisService: ServeAnalysisService {
         await progress(AnalysisProgress(stage: .preparing, fraction: 0.05, detail: "Sampling frames on this device"))
         let extracted = try await frameExtractor.extractFrames(from: videoURL, samplesPerSecond: 15, maximumFrames: 180)
 
-        await progress(AnalysisProgress(stage: .detecting, fraction: 0.18, detail: "Looking for one player in each frame"))
+        await progress(AnalysisProgress(stage: .detecting, fraction: 0.18, detail: "Locking onto the primary athlete"))
         var detected: [PoseFrame] = []
+        var ambiguousFrameCount = 0
         for (index, frame) in extracted.frames.enumerated() {
             try Task.checkCancellation()
-            if let pose = try await poseDetector.detectPose(in: frame.image, at: frame.timestamp) { detected.append(pose) }
+            do {
+                if let pose = try await poseDetector.detectPose(
+                    in: frame.image,
+                    at: frame.timestamp
+                ) {
+                    detected.append(pose)
+                }
+            } catch ServeAIError.multiplePeopleDetected {
+                ambiguousFrameCount += 1
+            }
             if index.isMultiple(of: 12) {
                 let fraction = 0.18 + 0.28 * Double(index + 1) / Double(extracted.frames.count)
                 await progress(AnalysisProgress(stage: .detecting, fraction: fraction, detail: "\(detected.count) usable poses found"))
             }
+        }
+        if ambiguityPolicy.isBlocking(
+            ambiguousFrames: ambiguousFrameCount,
+            sampledFrames: extracted.frames.count
+        ) {
+            throw ServeAIError.multiplePeopleDetected
         }
         guard !detected.isEmpty else { throw ServeAIError.noPersonDetected }
         guard detected.count >= max(10, extracted.frames.count / 5) else { throw ServeAIError.poseTrackingFailed }

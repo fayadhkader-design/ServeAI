@@ -42,6 +42,7 @@ struct CoreMLServeAnalysisService: ServeAnalysisService {
     private let confidenceCalculator: any AnalysisConfidenceCalculating
     private let feedbackGenerator: any ServeFeedbackGenerating
     private let videoHasher: any VideoContentHashing
+    private let ambiguityPolicy: PoseAmbiguityPolicy
 
     init(
         source: AnalysisSource = .coreML,
@@ -51,7 +52,8 @@ struct CoreMLServeAnalysisService: ServeAnalysisService {
         model: any ServeInferenceModel,
         confidenceCalculator: any AnalysisConfidenceCalculating,
         feedbackGenerator: any ServeFeedbackGenerating,
-        videoHasher: any VideoContentHashing = SHA256VideoContentHasher()
+        videoHasher: any VideoContentHashing = SHA256VideoContentHasher(),
+        ambiguityPolicy: PoseAmbiguityPolicy = PoseAmbiguityPolicy()
     ) {
         self.source = source
         self.frameExtractor = frameExtractor
@@ -61,6 +63,7 @@ struct CoreMLServeAnalysisService: ServeAnalysisService {
         self.confidenceCalculator = confidenceCalculator
         self.feedbackGenerator = feedbackGenerator
         self.videoHasher = videoHasher
+        self.ambiguityPolicy = ambiguityPolicy
     }
 
     func analyze(
@@ -72,12 +75,20 @@ struct CoreMLServeAnalysisService: ServeAnalysisService {
         await progress(.init(stage: .preparing, fraction: 0.05, detail: "Preparing model input"))
         let extracted = try await frameExtractor.extractFrames(from: videoURL, samplesPerSecond: 30, maximumFrames: 360)
 
-        await progress(.init(stage: .detecting, fraction: 0.20, detail: "Extracting body landmarks"))
+        await progress(.init(stage: .detecting, fraction: 0.20, detail: "Locking onto the primary athlete"))
         var detected: [PoseFrame] = []
+        var ambiguousFrameCount = 0
         for (index, frame) in extracted.frames.enumerated() {
             try Task.checkCancellation()
-            if let pose = try await poseDetector.detectPose(in: frame.image, at: frame.timestamp) {
-                detected.append(pose)
+            do {
+                if let pose = try await poseDetector.detectPose(
+                    in: frame.image,
+                    at: frame.timestamp
+                ) {
+                    detected.append(pose)
+                }
+            } catch ServeAIError.multiplePeopleDetected {
+                ambiguousFrameCount += 1
             }
             if index.isMultiple(of: 18) {
                 await progress(.init(
@@ -86,6 +97,12 @@ struct CoreMLServeAnalysisService: ServeAnalysisService {
                     detail: "\(detected.count) model-ready frames"
                 ))
             }
+        }
+        if ambiguityPolicy.isBlocking(
+            ambiguousFrames: ambiguousFrameCount,
+            sampledFrames: extracted.frames.count
+        ) {
+            throw ServeAIError.multiplePeopleDetected
         }
         guard detected.count >= max(18, extracted.frames.count / 2) else { throw ServeAIError.poseTrackingFailed }
 

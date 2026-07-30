@@ -31,6 +31,59 @@ final class FeatureEvidenceServiceTests: XCTestCase {
         XCTAssertEqual(evidence.provenance.requestedSamplesPerSecond, 15)
     }
 
+    func testVisionAnalysisSkipsIsolatedAmbiguousFrame() async throws {
+        let service = VisionPoseAnalysisService(
+            frameExtractor: EvidenceFrameExtractor(),
+            poseDetector: AmbiguityPoseDetector(ambiguousFrameIndices: [1]),
+            poseTracker: MovingAveragePoseTrackingService(),
+            phaseDetector: EvidencePhaseDetector(),
+            metricsCalculator: ServeMetricsCalculator(),
+            confidenceCalculator: AnalysisConfidenceCalculator(),
+            feedbackGenerator: ServeFeedbackGenerator(),
+            videoHasher: EvidenceVideoHasher()
+        )
+
+        let analysis = try await service.analyze(
+            videoURL: URL(fileURLWithPath: "/tmp/stadium-serve.mov"),
+            cameraAngle: .rear,
+            skillLevel: .intermediate,
+            progress: { _ in }
+        )
+
+        XCTAssertEqual(analysis.videoMetadata.usableFrames, 19)
+        XCTAssertEqual(
+            analysis.modelFeatureEvidence?.provenance.detectedFrameCount,
+            19
+        )
+    }
+
+    func testVisionAnalysisRejectsSustainedForegroundAmbiguity() async throws {
+        let service = VisionPoseAnalysisService(
+            frameExtractor: EvidenceFrameExtractor(),
+            poseDetector: AmbiguityPoseDetector(
+                ambiguousFrameIndices: [0, 1, 2, 3, 4]
+            ),
+            poseTracker: MovingAveragePoseTrackingService(),
+            phaseDetector: EvidencePhaseDetector(),
+            metricsCalculator: ServeMetricsCalculator(),
+            confidenceCalculator: AnalysisConfidenceCalculator(),
+            feedbackGenerator: ServeFeedbackGenerator(),
+            videoHasher: EvidenceVideoHasher()
+        )
+
+        do {
+            _ = try await service.analyze(
+                videoURL: URL(fileURLWithPath: "/tmp/two-players.mov"),
+                cameraAngle: .rear,
+                skillLevel: .intermediate,
+                progress: { _ in }
+            )
+            XCTFail("Expected sustained foreground ambiguity to be rejected")
+        } catch ServeAIError.multiplePeopleDetected {
+            // Expected.
+        }
+    }
+
     func testRejectedPilotSampleProducesEvidenceButNoCoaching() async throws {
         let metadata = VideoMetadata(
             duration: 3,
@@ -144,6 +197,24 @@ private struct EvidencePoseDetector: PoseDetectionService {
             )
         })
         return PoseFrame(timestamp: timestamp, joints: joints, bodyConfidence: 0.92)
+    }
+}
+
+private struct AmbiguityPoseDetector: PoseDetectionService {
+    let ambiguousFrameIndices: Set<Int>
+
+    func detectPose(
+        in image: CGImage,
+        at timestamp: TimeInterval
+    ) async throws -> PoseFrame? {
+        let frameIndex = Int((timestamp / 0.1).rounded())
+        if ambiguousFrameIndices.contains(frameIndex) {
+            throw ServeAIError.multiplePeopleDetected
+        }
+        return try await EvidencePoseDetector().detectPose(
+            in: image,
+            at: timestamp
+        )
     }
 }
 
