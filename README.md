@@ -60,6 +60,14 @@ The Home menu also contains **Pilot data capture** for the frozen 300-slot resea
 
 With no configuration, ServeAI samples the selected video on-device, detects human-body poses with Apple Vision, smooths joint trajectories, anchors phases using documented heuristics, and generates measurements and feedback from the observable motion. Unobservable phases are removed from score weighting, and racket-head speed is never fabricated.
 
+When Vision returns several bodies in stadium or social-video footage, ServeAI
+ranks complete pose candidates by their on-screen geometric scale, joint
+coverage, and confidence. A clearly dominant foreground athlete is selected
+while small background spectators are ignored. The clip is rejected only when
+similarly sized foreground players compete for the athlete track across at
+least 25% of sampled frames, with a minimum of three ambiguous frames. Isolated
+ambiguous frames are omitted rather than assigned to an arbitrary person.
+
 No setup is needed. The app defaults to Vision mode when `SERVEAI_ANALYSIS_MODE` is absent.
 
 ### Mock mode — development and UI testing
@@ -137,7 +145,7 @@ PhotosPicker itself uses Apple's privacy-preserving picker. Camera and microphon
 - The user confirms the full clip. The `VideoClipSelection` abstraction is ready for start/end trimming, but a frame-accurate editor is not included.
 - Video pose overlays are not persisted in this MVP.
 - Camera capture must be tested on hardware; Simulator has no live camera.
-- Vision can reject videos with multiple people, inadequate usable frames, extreme occlusion, poor lighting, unsupported encoding, or incomplete framing.
+- Vision can reject videos with sustained ambiguity between similarly sized foreground players, inadequate usable frames, extreme occlusion, poor lighting, unsupported encoding, or incomplete framing. Small background spectators do not cause a multiple-player rejection when one athlete is clearly dominant.
 - Intentional failure samples are useful only for training and evaluating rejection/usability. They cannot become technique, phase-timing, or coaching-priority ground truth.
 - Technical measurements are coaching estimates, not medical or laboratory biomechanics.
 
@@ -152,7 +160,7 @@ The test target covers:
 - serve-phase chronology
 - coaching feedback and three-drill maximum
 - in-memory SwiftData save, fetch, JSON-backed value retrieval, and delete
-- recording-quality pass/reject thresholds and multiple-person blocking
+- recording-quality pass/reject thresholds, dominant-athlete selection, stadium-spectator filtering, and sustained multiple-person blocking
 - model feature schema stability and annotation consent defaults
 - signed coach-task round-trip, tamper, wrong-video, and duplicate-import rejection
 - production-default and explicit analysis-mode resolution
