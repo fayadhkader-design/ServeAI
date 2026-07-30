@@ -58,7 +58,7 @@ The Home menu also contains **Pilot data capture** for the frozen 300-slot resea
 
 ### Vision mode — default
 
-With no configuration, ServeAI samples the selected video on-device, detects human-body poses with Apple Vision, smooths joint trajectories, anchors phases using documented heuristics, and generates measurements and feedback from the observable motion. Unobservable phases are removed from score weighting, and racket-head speed is never fabricated.
+With no configuration, ServeAI samples the selected video on-device, detects human-body poses with Apple Vision, smooths joint trajectories, anchors phases using documented heuristics, and generates measurements and feedback from the observable motion. Racket drop uses a wrist-depth proxy relative to the hitting shoulder, and pronation uses the post-contact elbow-to-wrist path in the image plane. Both are explicitly reported as limited arm-motion proxies rather than direct racket or axial-rotation measurements. Unobservable phases are removed from score weighting, and racket-head speed is never fabricated.
 
 When Vision returns several bodies in stadium or social-video footage, ServeAI
 ranks complete pose candidates by their on-screen geometric scale, joint
@@ -139,7 +139,7 @@ PhotosPicker itself uses Apple's privacy-preserving picker. Camera and microphon
 ## Current limitations
 
 - Phase detection and phase scoring are heuristics, not outputs from a trained tennis model.
-- Apple body pose does not detect the racket or ball; racket-head speed, ball speed, and exact toss placement are unavailable.
+- Apple body pose does not detect the racket or ball. Racket-drop and pronation scores are limited wrist/elbow motion proxies; racket-head speed, ball speed, exact toss placement, racket-head depth, and axial forearm rotation remain unavailable.
 - A single 2D view cannot recover precise depth, hip/shoulder separation, or out-of-plane rotation.
 - Dominant hand is not inferred automatically; the internal coach calibration flow records it explicitly for subgroup evaluation.
 - The user confirms the full clip. The `VideoClipSelection` abstraction is ready for start/end trimming, but a frame-accurate editor is not included.

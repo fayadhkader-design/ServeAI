@@ -1,18 +1,28 @@
 import Foundation
 
 struct HeuristicPhaseScorer: Sendable {
+    private enum ArmSide {
+        case left
+        case right
+    }
+
     // TODO(ML): Calibrate scoring ranges against expert-labeled serves before production use.
     func score(frames: [PoseFrame], phases: [DetectedServePhase]) -> [PhaseScore] {
-        ServePhaseKind.allCases.map { phase in
-            let phaseFrames = framesFor(phase, in: frames, phases: phases)
+        let hittingArm = hittingArm(in: frames, phases: phases)
+        return ServePhaseKind.allCases.map { phase in
+            let phaseFrames = evidenceFrames(for: phase, in: frames, phases: phases)
             guard !phaseFrames.isEmpty else {
                 return PhaseScore(phase: phase, score: nil, confidence: .low, note: "Insufficient visibility — this phase could not be isolated.")
             }
-            return score(phase, frames: phaseFrames)
+            return score(phase, frames: phaseFrames, hittingArm: hittingArm)
         }
     }
 
-    private func score(_ phase: ServePhaseKind, frames: [PoseFrame]) -> PhaseScore {
+    private func score(
+        _ phase: ServePhaseKind,
+        frames: [PoseFrame],
+        hittingArm: ArmSide?
+    ) -> PhaseScore {
         let quality = frames.reduce(0) { $0 + $1.bodyConfidence } / Double(frames.count)
         let confidence = level(quality)
         guard quality >= 0.35 else {
@@ -45,7 +55,10 @@ struct HeuristicPhaseScorer: Sendable {
             let score = Int(max(45, min(92, 65 + rise * 180)))
             return PhaseScore(phase: phase, score: score, confidence: confidence, note: rise > 0.05 ? "The body center rises during the drive." : "Limited upward body-center movement was visible.")
         case .racketDrop:
-            return unavailable(phase, "Body pose does not identify the racket head; wrist position alone is not enough.")
+            guard let hittingArm else {
+                return unavailable(phase, "The hitting arm could not be identified near contact.")
+            }
+            return racketDropProxy(frames: frames, arm: hittingArm)
         case .upwardAcceleration:
             let speeds = wristVerticalSpeeds(frames)
             guard let peak = speeds.max() else { return unavailable(phase, "The hitting wrist was not tracked continuously.") }
@@ -57,7 +70,10 @@ struct HeuristicPhaseScorer: Sendable {
             let score = Int(max(50, min(94, 55 + (maximum - 120) * 0.8)))
             return PhaseScore(phase: phase, score: score, confidence: confidence, note: "Maximum visible hitting-arm extension is approximately \(Int(maximum.rounded()))°.")
         case .pronation:
-            return unavailable(phase, "Forearm rotation cannot be resolved reliably from body joints alone.")
+            guard let hittingArm else {
+                return unavailable(phase, "The hitting arm could not be identified near contact.")
+            }
+            return pronationProxy(frames: frames, arm: hittingArm)
         case .landingFollowThrough:
             guard let final = frames.last, let root = final.joints[.root], let left = final.joints[.leftAnkle], let right = final.joints[.rightAnkle] else { return unavailable(phase, "The feet and body center were not visible at landing.") }
             let margin = abs(left.x - right.x) * 0.35
@@ -66,9 +82,216 @@ struct HeuristicPhaseScorer: Sendable {
         }
     }
 
+    private func evidenceFrames(
+        for phase: ServePhaseKind,
+        in frames: [PoseFrame],
+        phases: [DetectedServePhase]
+    ) -> [PoseFrame] {
+        switch phase {
+        case .racketDrop:
+            return framesBetween(
+                in: frames,
+                from: phases.first(where: { $0.phase == .legDrive })?.startTime,
+                through: phases.first(where: { $0.phase == .upwardAcceleration })?.endTime
+            ) ?? framesFor(phase, in: frames, phases: phases)
+        case .pronation:
+            return framesBetween(
+                in: frames,
+                from: phases.first(where: { $0.phase == .contactPosition })?.startTime,
+                through: phases.first(where: { $0.phase == .pronation })?.endTime
+            ) ?? framesFor(phase, in: frames, phases: phases)
+        default:
+            return framesFor(phase, in: frames, phases: phases)
+        }
+    }
+
+    private func framesBetween(
+        in frames: [PoseFrame],
+        from startTime: TimeInterval?,
+        through endTime: TimeInterval?
+    ) -> [PoseFrame]? {
+        guard let startTime, let endTime, endTime >= startTime else { return nil }
+        let selected = frames.filter {
+            $0.timestamp >= startTime && $0.timestamp <= endTime
+        }
+        return selected.isEmpty ? nil : selected
+    }
+
     private func framesFor(_ phase: ServePhaseKind, in frames: [PoseFrame], phases: [DetectedServePhase]) -> [PoseFrame] {
         guard let interval = phases.first(where: { $0.phase == phase }) else { return [] }
         return frames.filter { $0.timestamp >= interval.startTime && $0.timestamp <= interval.endTime }
+    }
+
+    private func hittingArm(
+        in frames: [PoseFrame],
+        phases: [DetectedServePhase]
+    ) -> ArmSide? {
+        let contactFrames = framesFor(.contactPosition, in: frames, phases: phases)
+        let candidates = contactFrames.isEmpty
+            ? Array(frames.suffix(max(1, frames.count / 3)))
+            : contactFrames
+        let leftScore = armSelectionScore(in: candidates, arm: .left)
+        let rightScore = armSelectionScore(in: candidates, arm: .right)
+        switch (leftScore, rightScore) {
+        case let (left?, right?):
+            return left >= right ? .left : .right
+        case (.some, .none):
+            return .left
+        case (.none, .some):
+            return .right
+        case (.none, .none):
+            return nil
+        }
+    }
+
+    private func armSelectionScore(
+        in frames: [PoseFrame],
+        arm: ArmSide
+    ) -> Double? {
+        frames.compactMap { frame -> Double? in
+            guard let points = armPoints(in: frame, arm: arm),
+                  let extensionAngle = Geometry.angle(
+                    vertex: points.elbow.point,
+                    first: points.shoulder.point,
+                    second: points.wrist.point
+                  ) else {
+                return nil
+            }
+            let confidence = (
+                points.shoulder.confidence
+                    + points.elbow.confidence
+                    + points.wrist.confidence
+            ) / 3
+            return extensionAngle / 180 * 0.65
+                + points.wrist.y * 0.25
+                + confidence * 0.10
+        }.max()
+    }
+
+    private func racketDropProxy(
+        frames: [PoseFrame],
+        arm: ArmSide
+    ) -> PhaseScore {
+        let samples = frames.compactMap { frame -> (depth: Double, confidence: Double)? in
+            guard let points = armPoints(in: frame, arm: arm),
+                  let scale = torsoScale(in: frame),
+                  scale > 0.04 else {
+                return nil
+            }
+            let depth = (points.shoulder.y - points.wrist.y) / scale
+            let confidence = (
+                points.shoulder.confidence
+                    + points.elbow.confidence
+                    + points.wrist.confidence
+            ) / 3
+            return (depth, confidence)
+        }
+        guard let deepest = samples.max(by: { $0.depth < $1.depth }) else {
+            return unavailable(.racketDrop, "The hitting shoulder, elbow, and wrist were not visible together.")
+        }
+        let boundedDepth = max(0, min(1, deepest.depth))
+        let score = Int((55 + boundedDepth * 35).rounded())
+        let averageConfidence = samples.map(\.confidence).reduce(0, +)
+            / Double(samples.count)
+        return PhaseScore(
+            phase: .racketDrop,
+            score: score,
+            confidence: proxyConfidence(
+                jointConfidence: averageConfidence,
+                coverage: Double(samples.count) / Double(max(frames.count, 1))
+            ),
+            note: String(
+                format: "Wrist-drop proxy: the hitting wrist reached %.2f torso lengths below the shoulder. This does not measure racket-head depth.",
+                max(0, deepest.depth)
+            )
+        )
+    }
+
+    private func pronationProxy(
+        frames: [PoseFrame],
+        arm: ArmSide
+    ) -> PhaseScore {
+        let samples = frames.compactMap { frame -> (angle: Double, confidence: Double)? in
+            guard let points = armPoints(in: frame, arm: arm) else { return nil }
+            let confidence = (points.elbow.confidence + points.wrist.confidence) / 2
+            return (
+                Geometry.lineAngle(points.elbow.point, points.wrist.point),
+                confidence
+            )
+        }
+        guard samples.count >= 2 else {
+            return unavailable(.pronation, "The hitting elbow and wrist were not tracked through contact.")
+        }
+        let angles = unwrapped(samples.map(\.angle))
+        guard let minimum = angles.min(), let maximum = angles.max() else {
+            return unavailable(.pronation, "Post-contact forearm movement could not be estimated.")
+        }
+        let sweep = abs(maximum - minimum)
+        let score = Int((55 + min(35, sweep * 0.5)).rounded())
+        let averageConfidence = samples.map(\.confidence).reduce(0, +)
+            / Double(samples.count)
+        return PhaseScore(
+            phase: .pronation,
+            score: score,
+            confidence: proxyConfidence(
+                jointConfidence: averageConfidence,
+                coverage: Double(samples.count) / Double(max(frames.count, 1))
+            ),
+            note: String(
+                format: "Forearm-path proxy: the elbow-to-wrist line rotated about %.0f° in the image plane after contact. Axial pronation is not measured directly.",
+                sweep
+            )
+        )
+    }
+
+    private func armPoints(
+        in frame: PoseFrame,
+        arm: ArmSide
+    ) -> (shoulder: PosePoint, elbow: PosePoint, wrist: PosePoint)? {
+        let joints: (BodyJoint, BodyJoint, BodyJoint) = switch arm {
+        case .left:
+            (.leftShoulder, .leftElbow, .leftWrist)
+        case .right:
+            (.rightShoulder, .rightElbow, .rightWrist)
+        }
+        guard let shoulder = frame.joints[joints.0],
+              let elbow = frame.joints[joints.1],
+              let wrist = frame.joints[joints.2] else {
+            return nil
+        }
+        return (shoulder, elbow, wrist)
+    }
+
+    private func torsoScale(in frame: PoseFrame) -> Double? {
+        if let neck = frame.joints[.neck], let root = frame.joints[.root] {
+            return Geometry.distance(neck.point, root.point)
+        }
+        if let left = frame.joints[.leftShoulder],
+           let right = frame.joints[.rightShoulder] {
+            return Geometry.distance(left.point, right.point) * 1.5
+        }
+        return nil
+    }
+
+    private func unwrapped(_ angles: [Double]) -> [Double] {
+        guard let first = angles.first else { return [] }
+        var result = [first]
+        var previousRaw = first
+        for angle in angles.dropFirst() {
+            var delta = angle - previousRaw
+            while delta > 180 { delta -= 360 }
+            while delta < -180 { delta += 360 }
+            result.append((result.last ?? first) + delta)
+            previousRaw = angle
+        }
+        return result
+    }
+
+    private func proxyConfidence(
+        jointConfidence: Double,
+        coverage: Double
+    ) -> ConfidenceLevel {
+        jointConfidence >= 0.65 && coverage >= 0.55 ? .medium : .low
     }
 
     private func kneeAngle(_ frame: PoseFrame) -> Double? {

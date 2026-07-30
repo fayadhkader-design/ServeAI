@@ -115,7 +115,7 @@ struct VisionPoseAnalysisService: ServeAnalysisService {
 
         await progress(AnalysisProgress(stage: .feedback, fraction: 0.95, detail: "Prioritizing clear corrections and drills"))
         var limitations = [
-            AnalysisLimitation(title: "Racket not tracked", detail: "The Vision body-pose request tracks joints, not the racket head. ServeAI does not estimate racket-head speed."),
+            AnalysisLimitation(title: "Arm-action proxies", detail: "Racket-drop and pronation scores use visible wrist and elbow paths. Apple Vision does not identify the racket head or directly measure axial forearm rotation, and ServeAI does not estimate racket-head speed."),
             AnalysisLimitation(title: "Single-view estimate", detail: "Depth and rotation outside the image plane cannot be measured precisely from one camera."),
             AnalysisLimitation(title: "Evidence quality is not accuracy", detail: "High video evidence means the body joints were tracked clearly. These heuristic technique scores have not been validated against independent coach ground truth.")
         ]
