@@ -231,15 +231,18 @@ struct VisionRecordingQualityAssessor: RecordingQualityAssessing {
     let frameExtractor: any VideoFrameExtracting
     let poseDetector: any PoseDetectionService
     let evaluator: RecordingQualityEvaluator
+    let ambiguityPolicy: PoseAmbiguityPolicy
 
     init(
         frameExtractor: any VideoFrameExtracting = AVVideoFrameExtractor(),
         poseDetector: any PoseDetectionService = VisionBodyPoseDetectionService(),
-        evaluator: RecordingQualityEvaluator = RecordingQualityEvaluator()
+        evaluator: RecordingQualityEvaluator = RecordingQualityEvaluator(),
+        ambiguityPolicy: PoseAmbiguityPolicy = PoseAmbiguityPolicy()
     ) {
         self.frameExtractor = frameExtractor
         self.poseDetector = poseDetector
         self.evaluator = evaluator
+        self.ambiguityPolicy = ambiguityPolicy
     }
 
     func assess(videoURL: URL, cameraAngle _: CameraAngle) async throws -> RecordingQualityReport {
@@ -249,7 +252,7 @@ struct VisionRecordingQualityAssessor: RecordingQualityAssessing {
             maximumFrames: 24
         )
         var poseFrames: [PoseFrame] = []
-        var foundMultiplePeople = false
+        var ambiguousFrameCount = 0
 
         for frame in extracted.frames {
             try Task.checkCancellation()
@@ -258,17 +261,21 @@ struct VisionRecordingQualityAssessor: RecordingQualityAssessing {
                     poseFrames.append(pose)
                 }
             } catch ServeAIError.multiplePeopleDetected {
-                foundMultiplePeople = true
+                ambiguousFrameCount += 1
             }
         }
 
-        let additionalIssues: [RecordingQualityIssue] = foundMultiplePeople ? [
+        let sustainedAmbiguity = ambiguityPolicy.isBlocking(
+            ambiguousFrames: ambiguousFrameCount,
+            sampledFrames: extracted.frames.count
+        )
+        let additionalIssues: [RecordingQualityIssue] = sustainedAmbiguity ? [
             .init(
                 kind: .multiplePeople,
                 severity: .blocking,
-                title: "More than one person is visible",
-                detail: "The analyzer cannot reliably determine which body belongs to the server.",
-                recovery: "Record one player at a time and move spectators outside the camera frame."
+                title: "Multiple foreground players are visible",
+                detail: "Two similarly sized body poses compete for the server track in \(ambiguousFrameCount) of \(extracted.frames.count) sampled frames.",
+                recovery: "Crop the clip or re-record so one foreground player remains clearly dominant."
             )
         ] : []
 
