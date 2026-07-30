@@ -21,4 +21,16 @@ final class ServeAIErrorTests: XCTestCase {
         XCTAssertTrue(VisionBodyPoseDetectionService.isSupportedRuntime)
         #endif
     }
+
+    func testMultiplePeopleErrorDistinguishesCrowdsFromForegroundPlayers() {
+        let error = ServeAIError.multiplePeopleDetected
+
+        XCTAssertEqual(
+            error.errorDescription,
+            "Multiple foreground players were detected"
+        )
+        XCTAssertTrue(
+            error.recoverySuggestion?.contains("Distant spectators") == true
+        )
+    }
 }
