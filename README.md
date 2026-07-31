@@ -58,7 +58,7 @@ The Home menu also contains **Pilot data capture** for the frozen 300-slot resea
 
 ### Vision mode — default
 
-With no configuration, ServeAI samples the selected video on-device, detects human-body poses with Apple Vision, smooths joint trajectories, anchors phases using documented heuristics, and generates measurements and feedback from the observable motion. Racket drop uses a wrist-depth proxy relative to the hitting shoulder, and pronation uses the post-contact elbow-to-wrist path in the image plane. Both are explicitly reported as limited arm-motion proxies rather than direct racket or axial-rotation measurements. Unobservable phases are removed from score weighting, and racket-head speed is never fabricated.
+With no configuration, ServeAI samples the selected video on-device, detects human-body poses with Apple Vision, smooths joint trajectories, anchors phases using documented multi-frame heuristics, and generates measurements and feedback from the observable motion. A proportional phase fallback may keep replay chronological, but it is never scored. Racket drop uses a wrist-depth proxy relative to the hitting shoulder, and pronation uses the post-contact elbow-to-wrist path in the image plane. Both are explicitly reported as limited arm-motion proxies rather than direct racket or axial-rotation measurements. Unobservable or weakly timed phases are removed from score weighting, and racket-head speed is never fabricated.
 
 When Vision returns several bodies in stadium or social-video footage, ServeAI
 ranks complete pose candidates by their on-screen geometric scale, joint

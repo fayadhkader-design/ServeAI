@@ -165,7 +165,10 @@ struct ServeMetricsCalculator: ServeMetricsCalculating {
         in frames: [PoseFrame],
         phases: [DetectedServePhase]
     ) -> [PoseFrame] {
-        guard let interval = phases.first(where: { $0.phase == phase }) else { return [] }
+        guard let interval = phases.first(where: { $0.phase == phase }),
+              interval.confidence >= 0.35 else {
+            return []
+        }
         return frames.filter { $0.timestamp >= interval.startTime && $0.timestamp <= interval.endTime }
     }
 

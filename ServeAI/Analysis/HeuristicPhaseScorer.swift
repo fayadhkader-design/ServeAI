@@ -15,6 +15,13 @@ struct HeuristicPhaseScorer: Sendable {
     ) -> [PhaseScore] {
         let hittingArm = hittingArm(in: frames, phases: phases)
         return ServePhaseKind.allCases.map { phase in
+            guard let timing = phases.first(where: { $0.phase == phase }),
+                  timing.confidence >= 0.35 else {
+                return unavailable(
+                    phase,
+                    "The body-joint event for this phase could not be anchored reliably; a proportional fallback was not scored."
+                )
+            }
             let phaseFrames = evidenceFrames(for: phase, in: frames, phases: phases)
             guard !phaseFrames.isEmpty else {
                 return PhaseScore(phase: phase, score: nil, confidence: .low, note: "Insufficient visibility — this phase could not be isolated.")

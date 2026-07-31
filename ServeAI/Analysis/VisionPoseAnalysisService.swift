@@ -119,11 +119,14 @@ struct VisionPoseAnalysisService: ServeAnalysisService {
         )
         let insights = feedbackGenerator.generate(from: phaseScores, metrics: metrics, skillLevel: skillLevel)
         let drills = feedbackGenerator.selectDrills(for: insights, skillLevel: skillLevel)
-        let score = ScoreCalculator().weightedScore(for: phaseScores) ?? 0
+        guard let score = ScoreCalculator().weightedScore(for: phaseScores) else {
+            throw ServeAIError.poseTrackingFailed
+        }
 
         await progress(AnalysisProgress(stage: .feedback, fraction: 0.95, detail: "Prioritizing clear corrections and drills"))
         var limitations = [
             AnalysisLimitation(title: "Ball events are inferred", detail: "Body pose does not track the tennis ball or detect ball-racket impact. Toss and likely-contact scores describe visible arm-path proxies, not toss placement or confirmed impact."),
+            AnalysisLimitation(title: "Phase events can be unavailable", detail: "ServeAI does not score a phase when its body-joint event proxy cannot be anchored across multiple frames. Intermediate arm-action windows may be interpolated only between observed loading and likely-contact proxies; a whole-clip proportional fallback is never scored as measured evidence."),
             AnalysisLimitation(title: "Arm-action proxies", detail: "Racket-drop and pronation scores use visible wrist and elbow paths. Apple Vision does not identify the racket head or directly measure axial forearm rotation, and ServeAI does not estimate racket-head speed."),
             AnalysisLimitation(title: "Single-view estimate", detail: "Depth and rotation outside the image plane cannot be measured precisely from one camera."),
             AnalysisLimitation(title: "Evidence quality is not accuracy", detail: "High video evidence means the body joints were tracked clearly. These heuristic technique scores have not been validated against independent coach ground truth.")
