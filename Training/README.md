@@ -124,6 +124,8 @@ The in-app Coach Calibration export is schema v8. Before labeling, a coach must 
 
 The native editor shows the same 1–5 anchors, required-visibility cues, and do-not-infer rules contained in the frozen JSON. The contract is grounded in the published 8-stage serve framework, a 2024 systematic review of serve key events, and a 2D expert inter-rater study. These sources support a conservative observational protocol; they do not make a phone video equivalent to laboratory biomechanics or guarantee that a label is correct.
 
+The shipping Vision rules follow the separate [heuristic calibration policy](HEURISTIC_CALIBRATION.md): multi-frame evidence replaces single-frame extrema, image-plane angles are camera-aware, and low-confidence proxies cannot drive the overall score or coaching priority. This reduces known false penalties but is not a substitute for the coach-ground-truth release process below.
+
 The coach-side consent reference is not dataset authorization. Dataset preparation additionally requires an immutable signed consent receipt from a separately registered consent/privacy authority. The receipt binds the current notice, affirmative action, adult-only age assurance, purposes, data categories, retention period, participant pseudonym, and exact source-video fingerprint. See `CONSENT_GOVERNANCE.md`, `consent_registry.example.json`, and `consent_receipt.example.json` before collecting data.
 
 Each coach needs an EC P-256 key whose private half never enters the repository. Create one and give the study administrator only the public half:
