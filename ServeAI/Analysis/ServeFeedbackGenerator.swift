@@ -94,7 +94,7 @@ struct ServeFeedbackGenerator: ServeFeedbackGenerating {
     private func priorityInsight(for score: PhaseScore) -> CoachingInsight {
         switch score.phase {
         case .ballToss:
-            CoachingInsight(title: "Let the toss travel into the court", category: "Ball toss", severity: .priority, observation: score.note, whyItMatters: "A toss behind the body can interrupt upward drive and make contact less repeatable.", correction: "Release from a long tossing arm and aim for the ball to land just inside the baseline when you do not swing.", recommendedDrillID: "toss-target", confidence: score.confidence, relatedPhase: .ballToss)
+            CoachingInsight(title: "Finish the toss-arm path", category: "Ball toss", severity: .priority, observation: score.note, whyItMatters: "A smooth, extended toss-arm path provides a repeatable timing reference for the loading sequence.", correction: "Rehearse the toss without swinging: extend the elbow comfortably and let the wrist continue upward. Judge actual ball placement separately, because this analysis does not track the ball.", recommendedDrillID: "toss-target", confidence: score.confidence, relatedPhase: .ballToss)
         case .loading, .trophyPosition, .legDrive:
             CoachingInsight(title: "Sequence the load before driving up", category: "Loading and leg drive", severity: .priority, observation: score.note, whyItMatters: "A complete load creates time for the trunk and hitting arm to accelerate in order.", correction: "Pause briefly at trophy position in practice, confirm balance, then drive vertically before rotating through.", recommendedDrillID: "trophy-freeze", confidence: score.confidence, relatedPhase: score.phase)
         case .contactPosition, .upwardAcceleration:
