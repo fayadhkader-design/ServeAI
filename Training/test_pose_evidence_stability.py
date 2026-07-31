@@ -14,6 +14,17 @@ class PoseEvidenceStabilityTests(unittest.TestCase):
         self.assertEqual(report["participantGroups"]["expert"]["sequenceCount"], 1)
         self.assertEqual(report["overall"]["robustKneeEvidence"]["count"], 2)
         self.assertEqual(report["overall"]["consistentHittingArm"]["count"], 2)
+        for field in (
+            "robustTossEvent",
+            "robustLoadingEvent",
+            "robustWristDropEvent",
+            "robustLikelyContactEvent",
+            "allCoreBodyProxyEvents",
+            "allRobustBodyProxyEvents",
+        ):
+            self.assertIn(field, report["overall"])
+            self.assertGreaterEqual(report["overall"][field]["rate"], 0)
+            self.assertLessEqual(report["overall"][field]["rate"], 1)
         self.assertGreater(
             report["overall"]["sequencesWithConfidenceBasedArmSwitches"]["count"],
             0,
@@ -23,6 +34,15 @@ class PoseEvidenceStabilityTests(unittest.TestCase):
 
     def test_percentile_interpolates(self):
         self.assertAlmostEqual(audit.percentile([51, 108, 110, 112, 114], 0.20), 96.6)
+
+    def test_robust_extreme_rejects_one_frame_spike(self):
+        samples = [
+            {"index": index, "value": 0.4, "confidence": 0.9}
+            for index in range(12)
+        ]
+        samples[6]["value"] = 1.8
+
+        self.assertIsNone(audit.robust_extreme_anchor(samples, 0, 12, True, 0.2))
 
     def record(self, participant):
         frames = []

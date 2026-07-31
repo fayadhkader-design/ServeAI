@@ -118,6 +118,48 @@
       "license": "non-commercial-scientific-use",
       "allowedUse": "blocked-for-commercial-shipping",
       "scope": "High-speed sports 3D human poses and pretrained checkpoints"
+    },
+    {
+      "id": "racketvision",
+      "title": "RacketVision: A Multiple Racket Sports Benchmark for Unified Ball and Racket Analysis",
+      "doi": "10.1609/aaai.v40i5.37362",
+      "source": "https://huggingface.co/datasets/linfeng302/RacketVision",
+      "license": "MIT repository and dataset-card label; underlying broadcast-video rights not established",
+      "allowedUse": "research-only-pending-underlying-media-rights",
+      "scope": "435,000 frames from three racket sports with 88,000 ball and five-keypoint racket annotations",
+      "knownLimitations": [
+        "The paper states that footage was sourced from 942 professional game broadcasts on YouTube.",
+        "The repository MIT license does not identify the owners or licenses of the underlying broadcasts.",
+        "Broadcast rear-court framing does not match ServeAI's close side/rear iPhone capture distribution.",
+        "The annotations support ball and racket tracking, not technique-quality or coaching-priority labels."
+      ]
+    },
+    {
+      "id": "mendeley-tennis-ball-150",
+      "title": "Object Detection - Tennis Ball",
+      "doi": "10.17632/ppr8rdw98w.2",
+      "source": "https://data.mendeley.com/datasets/ppr8rdw98w/2",
+      "license": "CC-BY-4.0",
+      "allowedUse": "training-with-attribution",
+      "scope": "150 manually captured and labeled tennis-ball still images in varied settings",
+      "knownLimitations": [
+        "The dataset is too small to validate high-speed ball tracking by itself.",
+        "It contains still-image object boxes rather than serve trajectories or impact events.",
+        "It does not contain racket-pose or coaching labels."
+      ]
+    },
+    {
+      "id": "open-images-v7-racket-ball",
+      "title": "Open Images V7 tennis racket and tennis ball subset",
+      "source": "https://storage.googleapis.com/openimages/web/download_v7.html",
+      "license": "CC-BY-4.0 annotations; per-image Creative Commons license metadata",
+      "allowedUse": "candidate-pending-per-image-license-and-domain-audit",
+      "scope": "Detection boxes for Tennis racket and Tennis ball classes within the 1.9M-image dense-annotation subset",
+      "knownLimitations": [
+        "Google licenses annotations under CC BY 4.0 but instructs users to verify every source image license.",
+        "General still images do not establish high-speed serve-video recall, phase timing, or impact detection.",
+        "Bounding boxes do not provide racket orientation keypoints or coaching labels."
+      ]
     }
   ]
 }

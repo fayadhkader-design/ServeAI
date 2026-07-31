@@ -40,6 +40,13 @@ def percentile(values: list[float], probability: float) -> float | None:
     return ordered[lower] + (ordered[upper] - ordered[lower]) * fraction
 
 
+def robust_percentile(values: list[float], probability: float) -> float | None:
+    if len(values) < 3:
+        return percentile(values, probability)
+    endpoint_step = 1 / (len(values) - 1)
+    return percentile(values, max(endpoint_step, min(1 - endpoint_step, probability)))
+
+
 def point(frame: dict, name: str) -> dict | None:
     for item in frame.get("joints", []):
         if item.get("joint") == name and item.get("isPresent", True):
@@ -114,6 +121,133 @@ def normalized_arm_heights(frames: list[dict], side: str) -> list[tuple[float, f
     return samples
 
 
+def indexed_arm_heights(frames: list[dict], side: str) -> list[dict]:
+    samples = []
+    for index, frame in enumerate(frames):
+        shoulder = point(frame, f"{side}Shoulder")
+        wrist = point(frame, f"{side}Wrist")
+        scale = torso_scale(frame)
+        if not (shoulder and wrist and scale):
+            continue
+        confidence = min(shoulder["confidence"], wrist["confidence"])
+        if confidence < 0.25:
+            continue
+        samples.append({
+            "index": index,
+            "value": (wrist["y"] - shoulder["y"]) / scale,
+            "confidence": confidence,
+        })
+    return samples
+
+
+def indexed_body_center_heights(frames: list[dict]) -> list[dict]:
+    samples = []
+    for index, frame in enumerate(frames):
+        root = point(frame, "root")
+        scale = torso_scale(frame)
+        ankles = [
+            ankle for name in ("leftAnkle", "rightAnkle")
+            if (ankle := point(frame, name)) and ankle["confidence"] >= 0.25
+        ]
+        if not (root and scale and ankles):
+            continue
+        ankle_y = sum(ankle["y"] for ankle in ankles) / len(ankles)
+        samples.append({
+            "index": index,
+            "value": (root["y"] - ankle_y) / scale,
+            "confidence": min(root["confidence"], max(a["confidence"] for a in ankles)),
+        })
+    return samples
+
+
+def robust_extreme_anchor(
+    samples: list[dict],
+    start: int,
+    end: int,
+    find_maximum: bool,
+    minimum_prominence: float,
+) -> dict | None:
+    selected = [sample for sample in samples if start <= sample["index"] < end]
+    if len(selected) < 4 or end <= start:
+        return None
+    smoothed = []
+    for sample in selected:
+        neighbors = [
+            item for item in selected
+            if abs(item["index"] - sample["index"]) <= 2
+        ]
+        if len(neighbors) < 2:
+            continue
+        smoothed.append({
+            "index": sample["index"],
+            "value": percentile([item["value"] for item in neighbors], 0.50),
+            "confidence": sum(item["confidence"] for item in neighbors) / len(neighbors),
+        })
+    low = robust_percentile([item["value"] for item in smoothed], 0.15)
+    high = robust_percentile([item["value"] for item in smoothed], 0.85)
+    if len(smoothed) < 3 or low is None or high is None or high - low < minimum_prominence:
+        return None
+    key = lambda item: item["value"]
+    return (max if find_maximum else min)(smoothed, key=key)
+
+
+def phase_event_evidence(frames: list[dict], arm: str | None) -> dict[str, bool]:
+    count = len(frames)
+    if count < 10 or not arm:
+        return {
+            "robustTossEvent": False,
+            "robustLoadingEvent": False,
+            "robustWristDropEvent": False,
+            "robustLikelyContactEvent": False,
+            "allRobustBodyProxyEvents": False,
+            "allCoreBodyProxyEvents": False,
+        }
+    toss_side = "right" if arm == "left" else "left"
+    toss_samples = indexed_arm_heights(frames, toss_side)
+    toss = robust_extreme_anchor(
+        toss_samples,
+        count // 20,
+        max(count // 20 + 1, count * 11 // 20),
+        True,
+        0.20,
+    )
+    root_samples = indexed_body_center_heights(frames)
+    loading = robust_extreme_anchor(
+        root_samples,
+        max(count // 10, toss["index"] if toss else 0),
+        max(count // 10 + 1, count * 7 // 10),
+        False,
+        0.08,
+    )
+    wrist_samples = indexed_arm_heights(frames, arm)
+    contact = robust_extreme_anchor(
+        wrist_samples,
+        max(count // 2, loading["index"] if loading else count // 2),
+        max(count // 2 + 1, count * 19 // 20),
+        True,
+        0.22,
+    )
+    drop = robust_extreme_anchor(
+        wrist_samples,
+        max(count * 3 // 10, loading["index"] if loading else 0),
+        max(
+            count * 3 // 10 + 1,
+            min(count * 17 // 20, contact["index"] if contact else count * 17 // 20),
+        ),
+        False,
+        0.18,
+    )
+    result = {
+        "robustTossEvent": toss is not None,
+        "robustLoadingEvent": loading is not None,
+        "robustWristDropEvent": drop is not None,
+        "robustLikelyContactEvent": contact is not None,
+    }
+    result["allRobustBodyProxyEvents"] = all(result.values())
+    result["allCoreBodyProxyEvents"] = all((toss, loading, contact))
+    return result
+
+
 def hitting_arm(frames: list[dict]) -> str | None:
     candidates = frames[len(frames) // 2:]
     scores: dict[str, float] = {}
@@ -164,7 +298,7 @@ def record_observations(record: dict) -> dict[str, bool | int]:
     arm = hitting_arm(frames)
     toss_side = "right" if arm == "left" else "left" if arm == "right" else None
     toss_samples = normalized_arm_heights(frames[:max(1, len(frames) // 2)], toss_side) if toss_side else []
-    return {
+    observations = {
         "rejectedExtremeKneeFrame": bool(knee_angles and min(knee_angles) < 65),
         "robustKneeEvidence": len(plausible_knees) >= 3 and percentile(plausible_knees, 0.20) is not None,
         "rawShoulderDirectionOver90": any(abs(value) > 90 for value in directions),
@@ -173,6 +307,8 @@ def record_observations(record: dict) -> dict[str, bool | int]:
         "normalizedTossArmEvidence": len(toss_samples) >= 3,
         "wristConfidenceArmSwitches": confidence_arm_switches(frames),
     }
+    observations.update(phase_event_evidence(frames, arm))
+    return observations
 
 
 def participant_group(record: dict) -> str:
@@ -193,6 +329,12 @@ def summarize(observations: list[dict]) -> dict:
         "stableAcuteShoulderEvidence",
         "consistentHittingArm",
         "normalizedTossArmEvidence",
+        "robustTossEvent",
+        "robustLoadingEvent",
+        "robustWristDropEvent",
+        "robustLikelyContactEvent",
+        "allRobustBodyProxyEvents",
+        "allCoreBodyProxyEvents",
     ]
     result = {"sequenceCount": count}
     for field in boolean_fields:

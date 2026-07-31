@@ -1,6 +1,14 @@
 {
   "auditIdentifier": "serveai.pose-evidence-stability",
   "overall": {
+    "allCoreBodyProxyEvents": {
+      "count": 174,
+      "rate": 0.3515
+    },
+    "allRobustBodyProxyEvents": {
+      "count": 20,
+      "rate": 0.0404
+    },
     "consistentHittingArm": {
       "count": 495,
       "rate": 1.0
@@ -21,6 +29,22 @@
       "count": 495,
       "rate": 1.0
     },
+    "robustLikelyContactEvent": {
+      "count": 355,
+      "rate": 0.7172
+    },
+    "robustLoadingEvent": {
+      "count": 323,
+      "rate": 0.6525
+    },
+    "robustTossEvent": {
+      "count": 404,
+      "rate": 0.8162
+    },
+    "robustWristDropEvent": {
+      "count": 161,
+      "rate": 0.3253
+    },
     "sequenceCount": 495,
     "sequencesWithConfidenceBasedArmSwitches": {
       "count": 491,
@@ -34,6 +58,14 @@
   },
   "participantGroups": {
     "beginner": {
+      "allCoreBodyProxyEvents": {
+        "count": 77,
+        "rate": 0.276
+      },
+      "allRobustBodyProxyEvents": {
+        "count": 5,
+        "rate": 0.0179
+      },
       "consistentHittingArm": {
         "count": 279,
         "rate": 1.0
@@ -54,6 +86,22 @@
         "count": 279,
         "rate": 1.0
       },
+      "robustLikelyContactEvent": {
+        "count": 188,
+        "rate": 0.6738
+      },
+      "robustLoadingEvent": {
+        "count": 155,
+        "rate": 0.5556
+      },
+      "robustTossEvent": {
+        "count": 230,
+        "rate": 0.8244
+      },
+      "robustWristDropEvent": {
+        "count": 103,
+        "rate": 0.3692
+      },
       "sequenceCount": 279,
       "sequencesWithConfidenceBasedArmSwitches": {
         "count": 275,
@@ -66,6 +114,14 @@
       "totalConfidenceBasedArmSwitches": 2149
     },
     "expert": {
+      "allCoreBodyProxyEvents": {
+        "count": 97,
+        "rate": 0.4491
+      },
+      "allRobustBodyProxyEvents": {
+        "count": 15,
+        "rate": 0.0694
+      },
       "consistentHittingArm": {
         "count": 216,
         "rate": 1.0
@@ -85,6 +141,22 @@
       "robustKneeEvidence": {
         "count": 216,
         "rate": 1.0
+      },
+      "robustLikelyContactEvent": {
+        "count": 167,
+        "rate": 0.7731
+      },
+      "robustLoadingEvent": {
+        "count": 168,
+        "rate": 0.7778
+      },
+      "robustTossEvent": {
+        "count": 174,
+        "rate": 0.8056
+      },
+      "robustWristDropEvent": {
+        "count": 58,
+        "rate": 0.2685
       },
       "sequenceCount": 216,
       "sequencesWithConfidenceBasedArmSwitches": {

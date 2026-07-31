@@ -23,6 +23,8 @@ published group averages into false individual diagnoses.
   of single maxima for toss-arm, wrist-elevation, contact, and landing evidence.
 - Racket drop and pronation remain arm-path proxies. Body-pose joints cannot
   locate the racket head or directly measure axial forearm rotation.
+- Phase timing must fail closed. A whole-clip proportional fallback can keep the
+  replay UI chronological, but it cannot produce a numeric technique score.
 
 ## Toss and likely-contact calibration
 
@@ -61,6 +63,22 @@ raw 2D shoulder-line direction to one exact published "ideal." It folds line
 direction into an acute image-plane tilt, requires a stable shoulder span across
 multiple frames, and declines to grade this proxy from a side view.
 
+## Phase-event calibration
+
+The published serve vocabulary is anchored to ball release, trophy/loading,
+racket-head low point, and ball impact. Apple Vision body pose observes none of
+the ball or racket events directly. ServeAI therefore searches only for robust
+body-joint proxies: an early toss-arm peak, a body-center loading low point, and
+a later hitting-wrist peak. Five-frame median neighborhoods and a minimum
+trajectory prominence reject isolated tracking spikes.
+
+An intermediary arm window may be interpolated only between an observed load
+proxy and an observed likely-contact proxy. If either required event is absent,
+the UI may retain a proportional interval for replay, but its event confidence
+is zero and the phase is unavailable for scoring, feedback priority, and
+technical metrics. The likely-contact proxy is not verified ball-racket impact,
+and a hitting-wrist low point is not the racket-head low point.
+
 ## Release boundary
 
 These changes reduce known false penalties and make the report more honest. They
@@ -78,6 +96,14 @@ switches total. All 495 sequences also produced a raw shoulder-line direction
 above 90° because endpoint order changes line direction; the acute-line rule
 removes that representation error. Seven sequences contained an extreme knee
 frame rejected by the robust filter while retaining multi-frame knee evidence.
+
+The same audit found a robust early toss-arm peak in 404 sequences (81.62%), a
+body-center loading low in 323 (65.25%), and a later likely-contact wrist peak in
+355 (71.72%). Only 161 sequences (32.53%) contained the required robust
+pre-contact wrist-low pattern, and just 20 (4.04%) contained every body proxy.
+That low coverage is expected for frontal, staged, no-ball footage and is direct
+evidence against treating a body-wrist low as a mandatory racket event. It is
+why missing event timing now produces an unavailable result instead of a score.
 
 These results test failure modes and evidence coverage only. The manifest marks
 the footage as frontal, staged without a ball, and research-only; it cannot
