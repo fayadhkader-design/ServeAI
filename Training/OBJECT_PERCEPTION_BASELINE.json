@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "evaluationIdentifier": "serveai.object-perception-baseline",
+  "purpose": "Research-only racket and ball detector screening; not serve-technique or coaching accuracy.",
+  "candidateModel": {
+    "name": "YOLOv3Int8LUT",
+    "source": "https://ml-assets.apple.com/coreml/models/Image/ObjectDetection/YOLOv3/YOLOv3Int8LUT.mlmodel",
+    "sha256": "0e32f297ad9cfc0ea8e67276867956488c7ee10dc87c057da4debc939e20b76d",
+    "format": "Core ML",
+    "sizeBytes": 62200325,
+    "trainingDomain": "COCO 80-class object detection",
+    "embeddedLicenseReference": "https://github.com/pjreddie/darknet/blob/master/LICENSE",
+    "licenseInterpretation": "Darknet is dedicated to the public domain; the Apple-hosted model is still a research candidate until release review confirms all distribution terms."
+  },
+  "evaluationDataset": {
+    "id": "open-images-v7-racket-ball",
+    "split": "validation",
+    "imageCount": 30,
+    "tennisBallBoxCount": 15,
+    "tennisRacketBoxCount": 30,
+    "licenseAudit": "Every retained image metadata row names a Creative Commons Attribution license and is preserved by the local intake manifest.",
+    "domainLimitations": [
+      "The sample contains general tennis still images rather than high-frame-rate serve sequences.",
+      "COCO's sports-ball class is broader than tennis balls.",
+      "Bounding boxes do not locate racket orientation keypoints or verified ball-racket impact."
+    ]
+  },
+  "protocol": {
+    "confidenceThreshold": 0.1,
+    "iouMatchThreshold": 0.5,
+    "classMapping": {
+      "COCO sports ball": "tennis_ball",
+      "COCO tennis racket": "tennis_racket"
+    }
+  },
+  "results": {
+    "tennisBall": {
+      "truePositive": 9,
+      "falsePositive": 18,
+      "falseNegative": 6,
+      "precision": 0.3333333333333333,
+      "recall": 0.6,
+      "meanMatchedIoU": 0.8200426115100439
+    },
+    "tennisRacket": {
+      "truePositive": 27,
+      "falsePositive": 6,
+      "falseNegative": 3,
+      "precision": 0.8181818181818182,
+      "recall": 0.9,
+      "meanMatchedIoU": 0.8168110221135702
+    }
+  },
+  "transferLearningExperiment": {
+    "name": "ServeAIRacketBallResearch1000",
+    "framework": "Create ML MLObjectDetector",
+    "algorithm": "ObjectPrint revision 1 transfer learning",
+    "trainingImageCount": 1022,
+    "iterations": 1000,
+    "classes": [
+      "tennis_ball",
+      "tennis_racket"
+    ],
+    "trainingMetrics": {
+      "meanAveragePrecisionIoU50": 0.7738,
+      "tennisBallAveragePrecisionIoU50": 0.6632,
+      "tennisRacketAveragePrecisionIoU50": 0.8843
+    },
+    "createMLValidationMetrics": {
+      "meanAveragePrecisionIoU50": 0.39817,
+      "meanAveragePrecisionVariedIoU": 0.17136,
+      "tennisBallAveragePrecisionIoU50": 0.24444,
+      "tennisRacketAveragePrecisionIoU50": 0.5519
+    },
+    "fixedProtocolResults": {
+      "confidenceThreshold": 0.1,
+      "iouMatchThreshold": 0.5,
+      "tennisBall": {
+        "truePositive": 4,
+        "falsePositive": 14,
+        "falseNegative": 11,
+        "precision": 0.2222222222222222,
+        "recall": 0.26666666666666666,
+        "meanMatchedIoU": 0.6164042732831965
+      },
+      "tennisRacket": {
+        "truePositive": 25,
+        "falsePositive": 55,
+        "falseNegative": 5,
+        "precision": 0.3125,
+        "recall": 0.8333333333333334,
+        "meanMatchedIoU": 0.6934957891693973
+      }
+    },
+    "privateOwnerVideoCoverageAudit": {
+      "purpose": "Unlabeled domain-shift screening only; not accuracy.",
+      "videoCount": 2,
+      "sampledFrameCounts": [
+        117,
+        107
+      ],
+      "racketFrameRates": [
+        0.008547008547008548,
+        0.0
+      ],
+      "ballFrameRates": [
+        0.0,
+        0.0
+      ]
+    },
+    "releaseEligible": false,
+    "bundledInRelease": false,
+    "decision": "Rejected. It underperforms the pinned Apple baseline on the same fixed validation protocol and fails almost completely on the two available target-domain owner clips. The large training-to-validation gap is consistent with overfitting and domain mismatch."
+  },
+  "targetDomainReleaseGate": {
+    "minimumLabeledServeFrames": 300,
+    "minimumIndependentParticipants": 10,
+    "requiredCameraAngles": [
+      "side",
+      "rear"
+    ],
+    "minimumRacketPrecision": 0.95,
+    "minimumRacketRecall": 0.95,
+    "minimumBallPrecisionDuringTossThroughContact": 0.9,
+    "minimumBallRecallDuringTossThroughContact": 0.9,
+    "minimumCriticalPhaseTrackCoverage": 0.9,
+    "minimumMaterialSubgroupRecall": 0.85
+  },
+  "releaseInterpretation": {
+    "passesTargetDomainReleaseGate": false,
+    "canImproveResearchRacketTracking": true,
+    "canEstablishRacketHeadLowPoint": false,
+    "canEstablishBallImpact": false,
+    "canEstablishPronation": false,
+    "bundledInRelease": false,
+    "reason": "Racket boxes are promising but below the target precision gate; ball precision and recall are inadequate, the evaluation is not serve-domain video, and boxes do not provide racket-head keypoints."
+  }
+}

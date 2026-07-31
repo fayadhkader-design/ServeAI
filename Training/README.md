@@ -69,6 +69,47 @@ The generated model and evaluation report are written to the gitignored
 establish new-player generalization, so generated datasets and models are not
 published with the application source.
 
+## Racket and ball perception baseline
+
+Body pose cannot locate the racket head or tennis ball. The object-perception
+workstream therefore has its own license and accuracy gates. The Open Images
+intake retains only explicit Tennis racket and Tennis ball boxes, requires a
+per-image Creative Commons Attribution license, writes the complete attribution
+record beside each sample, and hashes every downloaded image:
+
+```sh
+python3 Training/prepare_open_images_racket_ball.py \
+  --split validation \
+  --output Training/data/open_images_racket_ball_validation \
+  --download
+```
+
+`evaluate_coreml_racket_ball_detector.swift` evaluates a Core ML detector at
+IoU 0.50 without treating object detection as coaching accuracy. The current
+research baseline is Apple's 59 MB YOLOv3Int8LUT model, pinned by SHA-256 in
+`OBJECT_PERCEPTION_BASELINE.json`. On 30 licensed Open Images validation images,
+it reaches 0.90 racket recall and 0.82 racket precision, but only 0.60 ball
+recall and 0.33 ball precision at confidence 0.10. That is useful feasibility
+evidence and insufficient for release.
+
+`audit_coreml_racket_ball_video.swift` measures unlabeled temporal detection
+coverage on a private local clip without exporting the clip or claiming that a
+detection is correct. It is intended to expose domain shift before annotation.
+The candidate is not bundled in ServeAI: bounding boxes do not identify racket
+orientation or racket-head low point, the COCO sports-ball class is broader than
+tennis balls, and the target-domain participant/angle gates have not passed.
+
+`train_createml_racket_ball_detector.swift` also tested a two-class ObjectPrint
+transfer-learning model on 1,022 licensed Open Images samples. After 1,000
+iterations, its Create ML validation mAP@0.50 was 0.40 despite 0.77 training
+mAP@0.50. Under the same fixed confidence/IoU protocol as the Apple baseline,
+it reached only 0.31 racket precision / 0.83 recall and 0.22 ball precision /
+0.27 recall. On the two available owner serve clips it detected no ball frames
+and only one racket frame in total. This is a documented rejected experiment,
+not an app dependency. Improving pronation and racket-drop evidence therefore
+requires target-domain serve frames labeled for ball and racket keypoints—not
+more training iterations on general tennis stills.
+
 ## Internet-sourced pseudo-coach experiment
 
 When qualified coaches are unavailable, `generate_pseudo_coach_dataset.py` uses all 500 ordered serve frames from the same CC BY 4.0 source and the published biomechanics references in `biomechanics_sources.json`. It detects 33 trophy-like overhead-arm maxima, retains 31 complete cycles, and produces transparent weak labels only for measurements supported by 2D body joints. Racket drop, pronation, toss consistency, trophy-alignment quality, true impact, ball speed, and racket speed remain unavailable.
