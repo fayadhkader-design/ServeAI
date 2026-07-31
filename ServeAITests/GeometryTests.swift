@@ -24,4 +24,16 @@ final class GeometryTests: XCTestCase {
         XCTAssertEqual(result.count, 5)
         XCTAssertEqual(result[2], 3, accuracy: 0.0001)
     }
+
+    func testAcuteLineTiltTreatsReversedShoulderLinesAsEquivalent() {
+        let forward = Geometry.acuteLineTilt(.zero, CGPoint(x: -0.29, y: 0.96))
+        let reversed = Geometry.acuteLineTilt(CGPoint(x: -0.29, y: 0.96), .zero)
+
+        XCTAssertEqual(forward, 73.2, accuracy: 0.2)
+        XCTAssertEqual(reversed, forward, accuracy: 0.0001)
+    }
+
+    func testPercentileInterpolatesWithoutSelectingSingleExtreme() {
+        XCTAssertEqual(Geometry.percentile([51, 108, 110, 112, 114], 0.20) ?? -1, 96.6, accuracy: 0.01)
+    }
 }

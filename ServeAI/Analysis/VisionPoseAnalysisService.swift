@@ -95,8 +95,16 @@ struct VisionPoseAnalysisService: ServeAnalysisService {
         guard phases.count >= 6 else { throw ServeAIError.poseTrackingFailed }
 
         await progress(AnalysisProgress(stage: .phases, fraction: 0.68, detail: "Anchoring visible serve events"))
-        let metrics = metricsCalculator.calculate(frames: tracked, phases: phases)
-        let phaseScores = HeuristicPhaseScorer().score(frames: tracked, phases: phases)
+        let metrics = metricsCalculator.calculate(
+            frames: tracked,
+            phases: phases,
+            cameraAngle: cameraAngle
+        )
+        let phaseScores = HeuristicPhaseScorer().score(
+            frames: tracked,
+            phases: phases,
+            cameraAngle: cameraAngle
+        )
 
         await progress(AnalysisProgress(stage: .technique, fraction: 0.82, detail: "Calculating evidence-based estimates"))
         let missing = missingAreas(in: tracked)

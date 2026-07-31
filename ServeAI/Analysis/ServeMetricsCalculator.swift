@@ -1,17 +1,37 @@
 import Foundation
 
 protocol ServeMetricsCalculating: Sendable {
-    func calculate(frames: [PoseFrame], phases: [DetectedServePhase]) -> [TechnicalMetric]
+    func calculate(
+        frames: [PoseFrame],
+        phases: [DetectedServePhase],
+        cameraAngle: CameraAngle
+    ) -> [TechnicalMetric]
 }
 
 struct ServeMetricsCalculator: ServeMetricsCalculating {
-    func calculate(frames: [PoseFrame], phases: [DetectedServePhase]) -> [TechnicalMetric] {
+    func calculate(
+        frames: [PoseFrame],
+        phases: [DetectedServePhase],
+        cameraAngle: CameraAngle
+    ) -> [TechnicalMetric] {
         guard !frames.isEmpty else { return [] }
         var metrics: [TechnicalMetric] = []
 
-        if let loaded = frames.min(by: { (kneeAngle(in: $0) ?? 180) < (kneeAngle(in: $1) ?? 180) }),
-           let angle = kneeAngle(in: loaded) {
-            metrics.append(TechnicalMetric(title: "Deepest knee flexion", value: "\(Int(angle.rounded()))°", context: "Estimated from the clearer leg; 180° is straight.", confidence: confidence(for: loaded), relatedPhase: .loading))
+        let loadingFrames = framesFor(.loading, in: frames, phases: phases)
+        let kneeSamples = loadingFrames.compactMap(kneeSample)
+            .filter { $0.angle >= 65 && $0.angle <= 175 }
+        if kneeSamples.count >= 3,
+           let angle = Geometry.percentile(kneeSamples.map(\.angle), 0.20) {
+            let flexion = 180 - angle
+            let averageConfidence = kneeSamples.map(\.confidence).reduce(0, +)
+                / Double(kneeSamples.count)
+            metrics.append(TechnicalMetric(
+                title: "Robust knee flexion",
+                value: "\(Int(flexion.rounded()))°",
+                context: "Anatomical flexion estimate from the clearer leg across the loading sequence; isolated extreme frames are excluded.",
+                confidence: level(averageConfidence),
+                relatedPhase: .loading
+            ))
         }
 
         if let highest = frames.max(by: { wristHeight(in: $0) < wristHeight(in: $1) }) {
@@ -25,19 +45,38 @@ struct ServeMetricsCalculator: ServeMetricsCalculating {
             metrics.append(TechnicalMetric(title: "Center movement", value: String(format: "%+.2f frame widths", displacement), context: "Approximate horizontal travel from setup through recovery.", confidence: minimumConfidence(confidence(for: first), confidence(for: last)), relatedPhase: .landingFollowThrough))
         }
 
-        if let trophy = frames.max(by: { abs(shoulderTilt(in: $0) ?? 0) < abs(shoulderTilt(in: $1) ?? 0) }), let tilt = shoulderTilt(in: trophy) {
-            metrics.append(TechnicalMetric(title: "Peak shoulder tilt", value: "\(Int(abs(tilt).rounded()))°", context: "Estimated angle of the shoulder line relative to horizontal.", confidence: confidence(for: trophy), relatedPhase: .trophyPosition))
+        if cameraAngle == .rear {
+            let trophyFrames = framesFor(.trophyPosition, in: frames, phases: phases)
+            let tiltSamples = trophyFrames.compactMap(shoulderTilt)
+            if tiltSamples.count >= 3,
+               let tilt = Geometry.percentile(tiltSamples.map(\.angle), 0.80),
+               tilt < 82 {
+                let averageConfidence = tiltSamples.map(\.confidence).reduce(0, +)
+                    / Double(tiltSamples.count)
+                metrics.append(TechnicalMetric(
+                    title: "Rear-view shoulder-line tilt",
+                    value: "\(Int(tilt.rounded()))°",
+                    context: "Image-plane line tilt only; this is not a 3D shoulder or trunk angle.",
+                    confidence: level(averageConfidence),
+                    relatedPhase: .trophyPosition
+                ))
+            }
         }
 
         return metrics
     }
 
-    private func kneeAngle(in frame: PoseFrame) -> Double? {
+    private func kneeSample(in frame: PoseFrame) -> (angle: Double, confidence: Double)? {
         let triples: [(BodyJoint, BodyJoint, BodyJoint)] = [(.leftHip, .leftKnee, .leftAnkle), (.rightHip, .rightKnee, .rightAnkle)]
-        return triples.compactMap { hip, knee, ankle in
+        return triples.compactMap { hip, knee, ankle -> (Double, Double)? in
             guard let a = frame.joints[hip], let b = frame.joints[knee], let c = frame.joints[ankle] else { return nil }
-            return Geometry.angle(vertex: b.point, first: a.point, second: c.point)
-        }.min()
+            let confidence = min(a.confidence, min(b.confidence, c.confidence))
+            guard confidence >= 0.35,
+                  let angle = Geometry.angle(vertex: b.point, first: a.point, second: c.point) else {
+                return nil
+            }
+            return (angle, confidence)
+        }.max(by: { $0.1 < $1.1 }).map { ($0.0, $0.1) }
     }
 
     private func wristHeight(in frame: PoseFrame) -> Double {
@@ -50,13 +89,32 @@ struct ServeMetricsCalculator: ServeMetricsCalculating {
         return PosePoint(x: (left.x + right.x) / 2, y: (left.y + right.y) / 2, confidence: min(left.confidence, right.confidence))
     }
 
-    private func shoulderTilt(in frame: PoseFrame) -> Double? {
-        guard let left = frame.joints[.leftShoulder], let right = frame.joints[.rightShoulder] else { return nil }
-        return Geometry.lineAngle(left.point, right.point)
+    private func shoulderTilt(in frame: PoseFrame) -> (angle: Double, confidence: Double)? {
+        guard let left = frame.joints[.leftShoulder],
+              let right = frame.joints[.rightShoulder],
+              Geometry.distance(left.point, right.point) >= 0.035 else {
+            return nil
+        }
+        let confidence = min(left.confidence, right.confidence)
+        guard confidence >= 0.35 else { return nil }
+        return (Geometry.acuteLineTilt(left.point, right.point), confidence)
+    }
+
+    private func framesFor(
+        _ phase: ServePhaseKind,
+        in frames: [PoseFrame],
+        phases: [DetectedServePhase]
+    ) -> [PoseFrame] {
+        guard let interval = phases.first(where: { $0.phase == phase }) else { return [] }
+        return frames.filter { $0.timestamp >= interval.startTime && $0.timestamp <= interval.endTime }
     }
 
     private func confidence(for frame: PoseFrame) -> ConfidenceLevel {
-        frame.bodyConfidence >= 0.78 ? .high : (frame.bodyConfidence >= 0.52 ? .medium : .low)
+        level(frame.bodyConfidence)
+    }
+
+    private func level(_ value: Double) -> ConfidenceLevel {
+        value >= 0.78 ? .high : (value >= 0.52 ? .medium : .low)
     }
 
     private func minimumConfidence(_ lhs: ConfidenceLevel, _ rhs: ConfidenceLevel) -> ConfidenceLevel {
