@@ -16,6 +16,15 @@ final class ScoringAndConfidenceTests: XCTestCase {
         XCTAssertNil(ScoreCalculator().weightedScore(for: phases))
     }
 
+    func testLowConfidenceProxyDoesNotDistortOverallScore() {
+        let phases = [
+            PhaseScore(phase: .contactPosition, score: 92, confidence: .high, note: ""),
+            PhaseScore(phase: .pronation, score: 20, confidence: .low, note: "")
+        ]
+
+        XCTAssertEqual(ScoreCalculator().weightedScore(for: phases), 92)
+    }
+
     func testConfidenceThresholds() {
         let calculator = AnalysisConfidenceCalculator()
         let high = calculator.calculate(visibility: 0.95, poseQuality: 0.9, usableFrames: 90, expectedFrames: 100, cameraSuitability: 0.9, missingAreas: [])

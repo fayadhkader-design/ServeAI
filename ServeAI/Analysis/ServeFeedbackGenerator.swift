@@ -28,8 +28,9 @@ struct ServeFeedbackGenerator: ServeFeedbackGenerating {
         preferredPriority: CoachTechniqueLabel?
     ) -> [CoachingInsight] {
         let measurable = phases.filter { $0.score != nil }
-        let strongest = measurable.max { ($0.score ?? 0) < ($1.score ?? 0) }
-        let weakest = measurable.min { ($0.score ?? 100) < ($1.score ?? 100) }
+        let coachingEligible = measurable.filter { $0.confidence != .low }
+        let strongest = coachingEligible.max { ($0.score ?? 0) < ($1.score ?? 0) }
+        let weakest = coachingEligible.min { ($0.score ?? 100) < ($1.score ?? 100) }
         var insights: [CoachingInsight] = []
 
         if let strongest {
@@ -47,7 +48,7 @@ struct ServeFeedbackGenerator: ServeFeedbackGenerating {
 
         let modelRanked = preferredPriority
             .flatMap(priorityPhase)
-            .flatMap { phase in measurable.first(where: { $0.phase == phase }) }
+            .flatMap { phase in coachingEligible.first(where: { $0.phase == phase }) }
         if let priority = modelRanked ?? weakest {
             insights.append(priorityInsight(for: priority))
         }

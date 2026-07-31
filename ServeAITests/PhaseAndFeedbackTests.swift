@@ -66,4 +66,23 @@ final class PhaseAndFeedbackTests: XCTestCase {
 
         XCTAssertEqual(insights.first(where: { $0.severity == .priority })?.relatedPhase, .loading)
     }
+
+    func testLowConfidenceMinimumCannotBecomeCoachingPriority() {
+        let phases = [
+            PhaseScore(phase: .trophyPosition, score: 25, confidence: .low, note: "Projection-sensitive estimate."),
+            PhaseScore(phase: .contactPosition, score: 81, confidence: .high, note: "Contact is visible."),
+            PhaseScore(phase: .landingFollowThrough, score: 78, confidence: .medium, note: "Landing is visible.")
+        ]
+
+        let insights = ServeFeedbackGenerator().generate(
+            from: phases,
+            metrics: [],
+            skillLevel: .advanced
+        )
+
+        XCTAssertEqual(
+            insights.first(where: { $0.severity == .priority })?.relatedPhase,
+            .landingFollowThrough
+        )
+    }
 }
