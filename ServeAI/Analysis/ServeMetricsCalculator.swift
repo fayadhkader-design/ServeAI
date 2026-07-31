@@ -21,7 +21,7 @@ struct ServeMetricsCalculator: ServeMetricsCalculating {
         let kneeSamples = loadingFrames.compactMap(kneeSample)
             .filter { $0.angle >= 65 && $0.angle <= 175 }
         if kneeSamples.count >= 3,
-           let angle = Geometry.percentile(kneeSamples.map(\.angle), 0.20) {
+           let angle = Geometry.robustPercentile(kneeSamples.map(\.angle), 0.20) {
             let flexion = 180 - angle
             let averageConfidence = kneeSamples.map(\.confidence).reduce(0, +)
                 / Double(kneeSamples.count)
@@ -34,22 +34,47 @@ struct ServeMetricsCalculator: ServeMetricsCalculating {
             ))
         }
 
-        if let highest = frames.max(by: { wristHeight(in: $0) < wristHeight(in: $1) }) {
-            let height = wristHeight(in: highest)
-            metrics.append(TechnicalMetric(title: "Peak wrist height", value: String(format: "%.2f body units", height), context: "Normalized vertical position; this is not racket-head height.", confidence: confidence(for: highest), relatedPhase: .contactPosition))
+        let wristSamples = frames.compactMap(wristElevationSample)
+        if wristSamples.count >= 3,
+           let height = Geometry.robustPercentile(wristSamples.map(\.height), 0.90) {
+            let averageConfidence = wristSamples.map(\.confidence).reduce(0, +)
+                / Double(wristSamples.count)
+            metrics.append(TechnicalMetric(
+                title: "Peak visible wrist elevation",
+                value: String(format: "%.2f torso lengths", height),
+                context: "Robust wrist height above its shoulder; this is not ball-contact or racket-head height.",
+                confidence: level(averageConfidence),
+                relatedPhase: .contactPosition
+            ))
         }
 
-        if let first = frames.first, let last = frames.last,
-           let firstCenter = bodyCenter(in: first), let lastCenter = bodyCenter(in: last) {
-            let displacement = lastCenter.x - firstCenter.x
-            metrics.append(TechnicalMetric(title: "Center movement", value: String(format: "%+.2f frame widths", displacement), context: "Approximate horizontal travel from setup through recovery.", confidence: minimumConfidence(confidence(for: first), confidence(for: last)), relatedPhase: .landingFollowThrough))
+        let centerSamples = frames.compactMap(bodyCenterSample)
+        if centerSamples.count >= 4 {
+            let edgeCount = max(2, centerSamples.count / 5)
+            let firstSamples = Array(centerSamples.prefix(edgeCount))
+            let lastSamples = Array(centerSamples.suffix(edgeCount))
+            if let firstCenter = Geometry.percentile(firstSamples.map(\.x), 0.50),
+               let lastCenter = Geometry.percentile(lastSamples.map(\.x), 0.50),
+               let scale = Geometry.percentile(centerSamples.map(\.scale), 0.50),
+               scale > 0.04 {
+                let displacement = (lastCenter - firstCenter) / scale
+                let averageConfidence = centerSamples.map(\.confidence).reduce(0, +)
+                    / Double(centerSamples.count)
+                metrics.append(TechnicalMetric(
+                    title: "Center movement",
+                    value: String(format: "%+.2f torso lengths", displacement),
+                    context: "Robust horizontal travel from setup through recovery; direction depends on the selected camera view.",
+                    confidence: level(averageConfidence),
+                    relatedPhase: .landingFollowThrough
+                ))
+            }
         }
 
         if cameraAngle == .rear {
             let trophyFrames = framesFor(.trophyPosition, in: frames, phases: phases)
             let tiltSamples = trophyFrames.compactMap(shoulderTilt)
             if tiltSamples.count >= 3,
-               let tilt = Geometry.percentile(tiltSamples.map(\.angle), 0.80),
+               let tilt = Geometry.robustPercentile(tiltSamples.map(\.angle), 0.80),
                tilt < 82 {
                 let averageConfidence = tiltSamples.map(\.confidence).reduce(0, +)
                     / Double(tiltSamples.count)
@@ -79,14 +104,49 @@ struct ServeMetricsCalculator: ServeMetricsCalculating {
         }.max(by: { $0.1 < $1.1 }).map { ($0.0, $0.1) }
     }
 
-    private func wristHeight(in frame: PoseFrame) -> Double {
-        max(frame.joints[.leftWrist]?.y ?? 0, frame.joints[.rightWrist]?.y ?? 0)
+    private func wristElevationSample(in frame: PoseFrame) -> (height: Double, confidence: Double)? {
+        let pairs: [(BodyJoint, BodyJoint)] = [
+            (.leftShoulder, .leftWrist),
+            (.rightShoulder, .rightWrist)
+        ]
+        guard let scale = torsoScale(in: frame), scale > 0.04 else { return nil }
+        return pairs.compactMap { shoulderJoint, wristJoint -> (Double, Double)? in
+            guard let shoulder = frame.joints[shoulderJoint],
+                  let wrist = frame.joints[wristJoint] else {
+                return nil
+            }
+            let confidence = min(shoulder.confidence, wrist.confidence)
+            guard confidence >= 0.35 else { return nil }
+            return ((wrist.y - shoulder.y) / scale, confidence)
+        }.max(by: { $0.0 < $1.0 }).map { ($0.0, $0.1) }
     }
 
-    private func bodyCenter(in frame: PoseFrame) -> PosePoint? {
-        if let root = frame.joints[.root] { return root }
-        guard let left = frame.joints[.leftHip], let right = frame.joints[.rightHip] else { return nil }
-        return PosePoint(x: (left.x + right.x) / 2, y: (left.y + right.y) / 2, confidence: min(left.confidence, right.confidence))
+    private func bodyCenterSample(in frame: PoseFrame) -> (x: Double, scale: Double, confidence: Double)? {
+        guard let scale = torsoScale(in: frame), scale > 0.04 else { return nil }
+        if let root = frame.joints[.root], root.confidence >= 0.35 {
+            return (root.x, scale, root.confidence)
+        }
+        guard let left = frame.joints[.leftHip],
+              let right = frame.joints[.rightHip],
+              min(left.confidence, right.confidence) >= 0.35 else {
+            return nil
+        }
+        return (
+            (left.x + right.x) / 2,
+            scale,
+            min(left.confidence, right.confidence)
+        )
+    }
+
+    private func torsoScale(in frame: PoseFrame) -> Double? {
+        if let neck = frame.joints[.neck], let root = frame.joints[.root] {
+            return Geometry.distance(neck.point, root.point)
+        }
+        if let left = frame.joints[.leftShoulder],
+           let right = frame.joints[.rightShoulder] {
+            return Geometry.distance(left.point, right.point) * 1.5
+        }
+        return nil
     }
 
     private func shoulderTilt(in frame: PoseFrame) -> (angle: Double, confidence: Double)? {
@@ -109,16 +169,7 @@ struct ServeMetricsCalculator: ServeMetricsCalculating {
         return frames.filter { $0.timestamp >= interval.startTime && $0.timestamp <= interval.endTime }
     }
 
-    private func confidence(for frame: PoseFrame) -> ConfidenceLevel {
-        level(frame.bodyConfidence)
-    }
-
     private func level(_ value: Double) -> ConfidenceLevel {
         value >= 0.78 ? .high : (value >= 0.52 ? .medium : .low)
-    }
-
-    private func minimumConfidence(_ lhs: ConfidenceLevel, _ rhs: ConfidenceLevel) -> ConfidenceLevel {
-        let rank: [ConfidenceLevel: Int] = [.low: 0, .medium: 1, .high: 2]
-        return (rank[lhs] ?? 0) <= (rank[rhs] ?? 0) ? lhs : rhs
     }
 }

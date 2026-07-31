@@ -36,4 +36,9 @@ final class GeometryTests: XCTestCase {
     func testPercentileInterpolatesWithoutSelectingSingleExtreme() {
         XCTAssertEqual(Geometry.percentile([51, 108, 110, 112, 114], 0.20) ?? -1, 96.6, accuracy: 0.01)
     }
+
+    func testRobustPercentileCannotSelectSingleEndpointSpike() {
+        XCTAssertEqual(Geometry.robustPercentile([0.2, 0.2, 0.2, 5.0], 0.80) ?? -1, 0.2, accuracy: 0.0001)
+        XCTAssertEqual(Geometry.robustPercentile([51, 108, 110, 112], 0.20) ?? -1, 108, accuracy: 0.0001)
+    }
 }

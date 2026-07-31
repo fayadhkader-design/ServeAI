@@ -58,6 +58,32 @@ final class ArmMotionProxyTests: XCTestCase {
         XCTAssertNil(scores.first { $0.phase == .pronation }?.score)
     }
 
+    func testSingleWristSpikeDoesNotMaxOutRacketDropProxy() {
+        let frames = [
+            frame(time: 0.00, rightElbow: (0.64, 0.68), rightWrist: (0.63, 0.50)),
+            frame(time: 0.10, rightElbow: (0.64, 0.68), rightWrist: (0.63, 0.52)),
+            frame(time: 0.20, rightElbow: (0.64, 0.68), rightWrist: (0.63, 0.10)),
+            frame(time: 0.30, rightElbow: (0.66, 0.75), rightWrist: (0.68, 0.94)),
+            frame(time: 0.40, rightElbow: (0.66, 0.75), rightWrist: (0.78, 0.82)),
+            frame(time: 0.50, rightElbow: (0.66, 0.75), rightWrist: (0.80, 0.72)),
+        ]
+        let phases = [
+            phase(.legDrive, 0.00, 0.10),
+            phase(.racketDrop, 0.10, 0.20),
+            phase(.upwardAcceleration, 0.20, 0.30),
+            phase(.contactPosition, 0.30, 0.35),
+            phase(.pronation, 0.35, 0.50),
+        ]
+
+        let score = HeuristicPhaseScorer()
+            .score(frames: frames, phases: phases)
+            .first { $0.phase == .racketDrop }?
+            .score
+
+        XCTAssertNotNil(score)
+        XCTAssertLessThan(score ?? 100, 90)
+    }
+
     private func frame(
         time: TimeInterval,
         rightElbow: (Double, Double),

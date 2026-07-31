@@ -103,12 +103,35 @@ struct HeuristicServePhaseDetector: ServePhaseDetecting {
 
     private func hittingArmScore(in frames: [PoseFrame], arm: ArmSide) -> Double? {
         let joint = wristJoint(for: arm)
-        let wrists = frames.compactMap { $0.joints[joint] }.filter { $0.confidence >= 0.25 }
-        guard !wrists.isEmpty else { return nil }
-        let peakHeight = wrists.map(\.y).max() ?? 0
-        let coverage = Double(wrists.count) / Double(max(frames.count, 1))
-        let confidence = wrists.map(\.confidence).reduce(0, +) / Double(wrists.count)
-        return peakHeight * 0.70 + coverage * 0.20 + confidence * 0.10
+        let shoulderJoint: BodyJoint = arm == .left ? .leftShoulder : .rightShoulder
+        let samples = frames.compactMap { frame -> (height: Double, confidence: Double)? in
+            guard let wrist = frame.joints[joint], wrist.confidence >= 0.25 else { return nil }
+            let height: Double
+            if let shoulder = frame.joints[shoulderJoint],
+               let neck = frame.joints[.neck],
+               let root = frame.joints[.root] {
+                let scale = Geometry.distance(neck.point, root.point)
+                height = scale > 0.04 ? (wrist.y - shoulder.y) / scale : wrist.y
+            } else {
+                height = wrist.y
+            }
+            return (height, wrist.confidence)
+        }
+        guard samples.count >= 2 else { return nil }
+        let half = max(1, samples.count / 2)
+        let early = Array(samples.prefix(half))
+        let late = Array(samples.suffix(half))
+        guard let low = Geometry.robustPercentile(early.map(\.height), 0.20),
+              let peak = Geometry.robustPercentile(late.map(\.height), 0.80) else {
+            return nil
+        }
+        let upwardRange = max(0, peak - low)
+        let coverage = Double(samples.count) / Double(max(frames.count, 1))
+        let confidence = samples.map(\.confidence).reduce(0, +) / Double(samples.count)
+        return min(1.5, upwardRange) / 1.5 * 0.65
+            + max(0, min(1.5, peak)) / 1.5 * 0.15
+            + coverage * 0.10
+            + confidence * 0.10
     }
 
     private func wristJoint(for arm: ArmSide) -> BodyJoint {

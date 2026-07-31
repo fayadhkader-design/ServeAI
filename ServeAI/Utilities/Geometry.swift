@@ -45,6 +45,17 @@ enum Geometry {
         return sorted[lower] + (sorted[upper] - sorted[lower]) * fraction
     }
 
+    /// A percentile that cannot select either endpoint when at least three
+    /// samples exist. This prevents one pose spike from becoming a phase peak.
+    static func robustPercentile(_ values: [Double], _ probability: Double) -> Double? {
+        guard values.count >= 3 else { return percentile(values, probability) }
+        let endpointStep = 1 / Double(values.count - 1)
+        return percentile(
+            values,
+            max(endpointStep, min(1 - endpointStep, probability))
+        )
+    }
+
     static func velocity(from a: CGPoint, at firstTime: TimeInterval, to b: CGPoint, at secondTime: TimeInterval) -> CGVector? {
         let delta = secondTime - firstTime
         guard delta > .ulpOfOne else { return nil }
