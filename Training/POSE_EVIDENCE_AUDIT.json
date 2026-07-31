@@ -1,0 +1,115 @@
+{
+  "auditIdentifier": "serveai.pose-evidence-stability",
+  "overall": {
+    "consistentHittingArm": {
+      "count": 495,
+      "rate": 1.0
+    },
+    "normalizedTossArmEvidence": {
+      "count": 485,
+      "rate": 0.9798
+    },
+    "rawShoulderDirectionOver90": {
+      "count": 495,
+      "rate": 1.0
+    },
+    "rejectedExtremeKneeFrame": {
+      "count": 7,
+      "rate": 0.0141
+    },
+    "robustKneeEvidence": {
+      "count": 495,
+      "rate": 1.0
+    },
+    "sequenceCount": 495,
+    "sequencesWithConfidenceBasedArmSwitches": {
+      "count": 491,
+      "rate": 0.9919
+    },
+    "stableAcuteShoulderEvidence": {
+      "count": 495,
+      "rate": 1.0
+    },
+    "totalConfidenceBasedArmSwitches": 3799
+  },
+  "participantGroups": {
+    "beginner": {
+      "consistentHittingArm": {
+        "count": 279,
+        "rate": 1.0
+      },
+      "normalizedTossArmEvidence": {
+        "count": 270,
+        "rate": 0.9677
+      },
+      "rawShoulderDirectionOver90": {
+        "count": 279,
+        "rate": 1.0
+      },
+      "rejectedExtremeKneeFrame": {
+        "count": 0,
+        "rate": 0.0
+      },
+      "robustKneeEvidence": {
+        "count": 279,
+        "rate": 1.0
+      },
+      "sequenceCount": 279,
+      "sequencesWithConfidenceBasedArmSwitches": {
+        "count": 275,
+        "rate": 0.9857
+      },
+      "stableAcuteShoulderEvidence": {
+        "count": 279,
+        "rate": 1.0
+      },
+      "totalConfidenceBasedArmSwitches": 2149
+    },
+    "expert": {
+      "consistentHittingArm": {
+        "count": 216,
+        "rate": 1.0
+      },
+      "normalizedTossArmEvidence": {
+        "count": 215,
+        "rate": 0.9954
+      },
+      "rawShoulderDirectionOver90": {
+        "count": 216,
+        "rate": 1.0
+      },
+      "rejectedExtremeKneeFrame": {
+        "count": 7,
+        "rate": 0.0324
+      },
+      "robustKneeEvidence": {
+        "count": 216,
+        "rate": 1.0
+      },
+      "sequenceCount": 216,
+      "sequencesWithConfidenceBasedArmSwitches": {
+        "count": 216,
+        "rate": 1.0
+      },
+      "stableAcuteShoulderEvidence": {
+        "count": 216,
+        "rate": 1.0
+      },
+      "totalConfidenceBasedArmSwitches": 1650
+    }
+  },
+  "purpose": "Research-only coverage and failure-mode audit; not technique accuracy or coach ground truth.",
+  "releaseInterpretation": {
+    "canCalibrateVisibilityAndRobustness": true,
+    "canEstablishTechniqueAccuracy": false,
+    "canTrainCommercialReleaseModel": false,
+    "reasons": [
+      "Frontal Kinect view is outside ServeAI's supported side/rear protocol.",
+      "Clips are staged without a tennis ball.",
+      "No independent ServeAI coach labels are provided.",
+      "Source terms do not state a commercial-use grant."
+    ]
+  },
+  "schemaVersion": 1,
+  "sourceManifestSHA256": "c6cfc5aa991067d45179f77ccd55c789ba8144f1f189aa4e876c525890eaa80f"
+}
