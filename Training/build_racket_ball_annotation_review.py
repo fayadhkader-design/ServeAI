@@ -24,7 +24,7 @@ PHASE_SAMPLES = {
 }
 
 KEYPOINTS = (
-    ("handleButt", "Bottom of the grip", "#46d5ff", "Click the bottom cap of the handle, closest to the player's hand."),
+    ("handleButt", "Bottom of the grip", "#46d5ff", "Click the cap below the player's hand, farthest from the racket oval."),
     ("racketThroat", "V-joint above the grip", "#c6ff3d", "Click where the handle splits into the V that supports the racket oval."),
     ("hoopTop", "Top tip of the racket oval", "#f3f5e8", "Click the farthest tip of the oval, directly opposite the handle."),
     ("hoopLeft", "Left edge of the racket oval", "#ff8a3d", "Click the oval's leftmost edge as it appears on your screen."),
