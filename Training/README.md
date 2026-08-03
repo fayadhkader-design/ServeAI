@@ -110,6 +110,22 @@ not an app dependency. Improving pronation and racket-drop evidence therefore
 requires target-domain serve frames labeled for ball and racket keypoints—not
 more training iterations on general tennis stills.
 
+Build the local target-domain labeling pilot from an existing reviewed
+calibration file and its unchanged source videos:
+
+```sh
+python3 Training/build_racket_ball_annotation_review.py
+```
+
+The page samples 15 critical frames per serve around racket drop, upward
+acceleration, contact, and post-contact rotation. The reviewer places the
+handle butt, racket throat, hoop top/left/right, and ball center when visible;
+untouched points are explicitly marked not visible when a frame is finished.
+Every normalized label is bound to both source-video and extracted-frame
+SHA-256 values. Browser drafts and generated frames remain local. The export is
+a one-participant workflow pilot, not release ground truth, and its 2D racket
+shape cannot by itself establish three-dimensional forearm pronation.
+
 ## Internet-sourced pseudo-coach experiment
 
 When qualified coaches are unavailable, `generate_pseudo_coach_dataset.py` uses all 500 ordered serve frames from the same CC BY 4.0 source and the published biomechanics references in `biomechanics_sources.json`. It detects 33 trophy-like overhead-arm maxima, retains 31 complete cycles, and produces transparent weak labels only for measurements supported by 2D body joints. Racket drop, pronation, toss consistency, trophy-alignment quality, true impact, ball speed, and racket speed remain unavailable.
