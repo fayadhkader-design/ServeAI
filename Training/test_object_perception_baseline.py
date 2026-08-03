@@ -50,6 +50,19 @@ class ObjectPerceptionBaselineTests(unittest.TestCase):
             baseline["tennisBall"]["recall"],
         )
 
+    def test_human_labeled_pilot_remains_research_only(self):
+        pilot = self.report["humanLabeledTargetDomainPilot"]
+        gate = self.report["targetDomainReleaseGate"]
+        held = pilot["targetPilotOnHeldRecording"]
+        self.assertFalse(pilot["releaseEligible"])
+        self.assertFalse(pilot["bundledInRelease"])
+        self.assertEqual(pilot["participantCount"], 1)
+        self.assertLess(pilot["frameCount"], gate["minimumLabeledServeFrames"])
+        self.assertLess(pilot["participantCount"], gate["minimumIndependentParticipants"])
+        self.assertLess(held["tennisRacket"]["precision"], gate["minimumRacketPrecision"])
+        self.assertLess(held["tennisRacket"]["recall"], gate["minimumRacketRecall"])
+        self.assertLess(held["tennisBall"]["recall"], gate["minimumBallRecallDuringTossThroughContact"])
+
 
 if __name__ == "__main__":
     unittest.main()

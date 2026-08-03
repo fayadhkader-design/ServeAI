@@ -126,6 +126,23 @@ SHA-256 values. Browser drafts and generated frames remain local. The export is
 a one-participant workflow pilot, not release ground truth, and its 2D racket
 shape cannot by itself establish three-dimensional forearm pronation.
 
+After downloading the completed export, validate its source/frame digests and
+materialize a recording-separated target-domain pilot:
+
+```sh
+python3 Training/prepare_racket_ball_keypoint_dataset.py \
+  ~/Downloads/serveai-participant-local-001-racket-ball-labels.json \
+  --review-directory outputs/racket-ball-label-review \
+  --output Training/data/target_domain_racket_ball_pilot
+```
+
+This preserves the human export unchanged, records any deterministic semantic
+normalization (such as reversed screen-left/screen-right hoop names), and emits
+keypoint JSONL plus Create ML detector annotations. The first recording is an
+adaptation split and the second is an evaluation split. Because both recordings
+show the same participant, this can diagnose target-domain behavior but cannot
+measure generalization to new players or satisfy the release gate.
+
 ## Internet-sourced pseudo-coach experiment
 
 When qualified coaches are unavailable, `generate_pseudo_coach_dataset.py` uses all 500 ordered serve frames from the same CC BY 4.0 source and the published biomechanics references in `biomechanics_sources.json`. It detects 33 trophy-like overhead-arm maxima, retains 31 complete cycles, and produces transparent weak labels only for measurements supported by 2D body joints. Racket drop, pronation, toss consistency, trophy-alignment quality, true impact, ball speed, and racket speed remain unavailable.

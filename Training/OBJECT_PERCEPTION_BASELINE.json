@@ -112,6 +112,69 @@
     "bundledInRelease": false,
     "decision": "Rejected. It underperforms the pinned Apple baseline on the same fixed validation protocol and fails almost completely on the two available target-domain owner clips. The large training-to-validation gap is consistent with overfitting and domain mismatch."
   },
+  "humanLabeledTargetDomainPilot": {
+    "purpose": "Measure whether one manually labeled owner recording can adapt racket and ball localization to a second recording from the same participant.",
+    "labelSchema": "human-reviewed-racket-ball-keypoint-pilot/v1",
+    "cameraAngle": "rear",
+    "participantCount": 1,
+    "recordingCount": 2,
+    "frameCount": 30,
+    "adaptationFrameCount": 15,
+    "heldRecordingFrameCount": 15,
+    "semanticCorrections": {
+      "screenLeftRightSwaps": 5,
+      "rule": "When both hoop edges were visible and hoopLeft.x exceeded hoopRight.x, the derived dataset swapped those two screen-relative names while preserving the original export."
+    },
+    "baselineOnHeldRecording": {
+      "confidenceThreshold": 0.1,
+      "iouMatchThreshold": 0.5,
+      "tennisBall": {
+        "truePositive": 0,
+        "falsePositive": 0,
+        "falseNegative": 14,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      "tennisRacket": {
+        "truePositive": 0,
+        "falsePositive": 0,
+        "falseNegative": 14,
+        "precision": 0.0,
+        "recall": 0.0
+      }
+    },
+    "targetPilotTraining": {
+      "framework": "Create ML MLObjectDetector",
+      "algorithm": "ObjectPrint revision 1 transfer learning",
+      "iterations": 300,
+      "trainingRacketAveragePrecisionIoU50": 0.92857,
+      "validationRacketAveragePrecisionIoU50": 0.14799,
+      "trainingBallAveragePrecisionIoU50": 0.0,
+      "validationBallAveragePrecisionIoU50": 0.0
+    },
+    "targetPilotOnHeldRecording": {
+      "confidenceThreshold": 0.1,
+      "iouMatchThreshold": 0.5,
+      "tennisBall": {
+        "truePositive": 0,
+        "falsePositive": 0,
+        "falseNegative": 14,
+        "precision": 0.0,
+        "recall": 0.0
+      },
+      "tennisRacket": {
+        "truePositive": 3,
+        "falsePositive": 7,
+        "falseNegative": 11,
+        "precision": 0.3,
+        "recall": 0.21429,
+        "meanMatchedIoU": 0.65994
+      }
+    },
+    "releaseEligible": false,
+    "bundledInRelease": false,
+    "decision": "Rejected for app integration. The pilot improves held-recording racket recall from zero to 0.21 but misses every labeled ball and most rackets. It strongly overfits the adaptation recording and cannot establish new-player accuracy."
+  },
   "targetDomainReleaseGate": {
     "minimumLabeledServeFrames": 300,
     "minimumIndependentParticipants": 10,
