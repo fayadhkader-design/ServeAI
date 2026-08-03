@@ -65,7 +65,12 @@ class RacketBallAnnotationReviewTests(unittest.TestCase):
             self.assertFalse(manifest["releaseEligible"])
             self.assertEqual(len(manifest["samples"]), 15)
             self.assertTrue(all(len(item["frameSHA256"]) == 64 for item in manifest["samples"]))
-            self.assertIn("normalized-top-left-origin", review.build_html(manifest))
+            page = review.build_html(manifest)
+            self.assertIn("normalized-top-left-origin", page)
+            self.assertIn("Bottom of the grip", page)
+            self.assertIn("where the handle splits into the V", page)
+            self.assertIn("as it appears on your screen", page)
+            self.assertIn("Can't see this point", page)
 
 
 if __name__ == "__main__":
