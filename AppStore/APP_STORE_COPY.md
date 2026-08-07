@@ -52,17 +52,20 @@ ServeAI has no login and no server dependency. To review the complete flow:
 2. Tap Analyze a Serve.
 3. Choose Side or Rear.
 4. Import a single-serve video from Photos or record one with the camera.
-5. Confirm the clip and run the on-device analysis.
+5. Select one complete serve, check the selected range, and run the on-device analysis.
 
 The app intentionally labels its default output “Vision heuristic · not coach-validated.” “Video evidence” measures pose visibility and capture quality, not prediction correctness. Experimental and evaluation-only model modes are unavailable in the App Store Release configuration.
 
 Camera and microphone access are used only for the in-app recording flow. Photos access uses Apple’s system picker. No data is transmitted by the app.
 
+## Public URLs
+
+- Support URL: https://fayadhkader-design.github.io/ServeAI/support.html
+- Privacy Policy URL: https://fayadhkader-design.github.io/ServeAI/privacy.html
+- Public support contact: https://github.com/fayadhkader-design/ServeAI/issues/new
+
 ## Required owner-supplied fields
 
-- Support URL
-- Privacy Policy URL
-- Support email
 - App Review contact name, email, and phone
 - Copyright owner and year
 - Final age-rating questionnaire

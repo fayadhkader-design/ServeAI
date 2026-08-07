@@ -42,4 +42,4 @@ If ServeAI’s data practices change, this policy and the App Store privacy disc
 
 ## Contact
 
-Before publication, replace this line with the public support email and mailing contact for ServeAI.
+For a privacy question about ServeAI, open a support request at https://github.com/fayadhkader-design/ServeAI/issues/new. The issue tracker is public; do not attach a private video, participant label, contact information, or other sensitive data.

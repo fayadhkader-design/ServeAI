@@ -24,8 +24,8 @@
 
 - [ ] Confirm active paid Apple Developer Program membership and agreements.
 - [ ] Create the ServeAI app record using bundle ID `com.serveai.app`.
-- [ ] Host the final privacy policy and support pages at public HTTPS URLs.
-- [ ] Replace every placeholder in the local policy/support copy.
+- [ ] Verify the deployed privacy policy and support pages at the GitHub Pages HTTPS URLs recorded in `APP_STORE_COPY.md`.
+- [x] Replace every placeholder in the local policy/support copy without publishing private contact information.
 - [ ] Complete App Privacy as “Data Not Collected” only if the shipped build still has no transmission or third-party collection.
 - [ ] Complete age rating, content rights, category, DSA trader status, export-compliance, and availability questions.
 - [ ] Capture final required iPhone screenshots from the signed Release candidate.

@@ -10,7 +10,7 @@
 
 ## If a video is rejected
 
-ServeAI rejects clips when the player is too small, too close to an edge, heavily occluded, poorly lit, or not visible in enough sampled frames. Re-record from farther away with the entire body visible.
+ServeAI rejects clips when the player is too small, too close to an edge, heavily occluded, poorly lit, or not visible in enough sampled frames. On Check the Clip, first set Start just before the toss and End after landing, then check that selected range. If the warning remains, re-record from farther away with the entire body visible.
 
 ## Understanding a report
 
@@ -24,4 +24,4 @@ ServeAI does not automatically upload videos or reports. Delete an analysis from
 
 ## Contact
 
-Before publication, replace this line with the public ServeAI support email and expected response time.
+Open a public support request at https://github.com/fayadhkader-design/ServeAI/issues/new. Describe what happened, your iPhone model, and your iOS version. Do not post a private serve video, participant code, signing credential, contact information, or other sensitive data.
