@@ -99,10 +99,11 @@ private struct VisionPoseFrameExtractor {
                     let request = VNDetectHumanBodyPoseRequest()
                     try VNImageRequestHandler(cgImage: image, orientation: .up).perform([request])
                     guard let observation = request.results?.max(by: { $0.confidence < $1.confidence }),
-                          let frame = normalizedFrame(
+                          var frame = normalizedFrame(
                             observation: observation,
                             timestamp: Double(index) / arguments.samplesPerSecond
                           ) else { continue }
+                    frame["imageFilename"] = imageURL.lastPathComponent
                     frames.append(frame)
                 }
                 let record: [String: Any] = [

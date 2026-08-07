@@ -143,6 +143,35 @@ adaptation split and the second is an evaluation split. Because both recordings
 show the same participant, this can diagnose target-domain behavior but cannot
 measure generalization to new players or satisfy the release gate.
 
+The full-frame detector loses the tiny ball and racket when a portrait frame is
+resized to its 416-pixel input. Build the frozen pose-centered ROI experiment
+without using object labels to choose crop coordinates:
+
+```sh
+xcrun swiftc -parse-as-library Training/extract_vision_pose_frames.swift \
+  -framework Foundation -framework ImageIO -framework Vision -O \
+  -o work/bin/extract_vision_pose_frames
+work/bin/extract_vision_pose_frames \
+  --input Training/data/target_domain_racket_ball_pilot/adaptation \
+  --output work/adaptation-poses.jsonl --participant participant-local-001 --fps 15
+work/bin/extract_vision_pose_frames \
+  --input Training/data/target_domain_racket_ball_pilot/evaluation \
+  --output work/evaluation-poses.jsonl --participant participant-local-001 --fps 15
+python3 Training/prepare_pose_roi_racket_ball_dataset.py \
+  Training/data/target_domain_racket_ball_pilot \
+  --adaptation-poses work/adaptation-poses.jsonl \
+  --evaluation-poses work/evaluation-poses.jsonl \
+  --output Training/data/target_domain_racket_ball_pose_roi
+```
+
+At the adaptation-selected 0.80 confidence threshold, the untouched second
+recording reached 14/14 ball-center hits with no false positives. Racket
+precision was 0.83 but recall was only 0.36. The ignored local model can add two
+explicitly experimental visibility-coverage metrics to Debug reports; it never
+changes a score or coaching priority. Release builds exclude the model by name
+and fail packaging if it appears in the bundle. These same-player results are
+not evidence of new-player accuracy and do not promote the model.
+
 ## Internet-sourced pseudo-coach experiment
 
 When qualified coaches are unavailable, `generate_pseudo_coach_dataset.py` uses all 500 ordered serve frames from the same CC BY 4.0 source and the published biomechanics references in `biomechanics_sources.json`. It detects 33 trophy-like overhead-arm maxima, retains 31 complete cycles, and produces transparent weak labels only for measurements supported by 2D body joints. Racket drop, pronation, toss consistency, trophy-alignment quality, true impact, ball speed, and racket speed remain unavailable.

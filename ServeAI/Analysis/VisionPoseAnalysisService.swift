@@ -9,6 +9,7 @@ struct VisionPoseAnalysisService: ServeAnalysisService {
     private let metricsCalculator: any ServeMetricsCalculating
     private let confidenceCalculator: any AnalysisConfidenceCalculating
     private let feedbackGenerator: any ServeFeedbackGenerating
+    private let experimentalObjectPerception: (any ExperimentalObjectPerceptionAnalyzing)?
     private let videoHasher: any VideoContentHashing
     private let ambiguityPolicy: PoseAmbiguityPolicy
 
@@ -20,6 +21,7 @@ struct VisionPoseAnalysisService: ServeAnalysisService {
         metricsCalculator: any ServeMetricsCalculating,
         confidenceCalculator: any AnalysisConfidenceCalculating,
         feedbackGenerator: any ServeFeedbackGenerating,
+        experimentalObjectPerception: (any ExperimentalObjectPerceptionAnalyzing)? = nil,
         videoHasher: any VideoContentHashing = SHA256VideoContentHasher(),
         ambiguityPolicy: PoseAmbiguityPolicy = PoseAmbiguityPolicy()
     ) {
@@ -30,6 +32,7 @@ struct VisionPoseAnalysisService: ServeAnalysisService {
         self.metricsCalculator = metricsCalculator
         self.confidenceCalculator = confidenceCalculator
         self.feedbackGenerator = feedbackGenerator
+        self.experimentalObjectPerception = experimentalObjectPerception
         self.videoHasher = videoHasher
         self.ambiguityPolicy = ambiguityPolicy
     }
@@ -95,7 +98,7 @@ struct VisionPoseAnalysisService: ServeAnalysisService {
         guard phases.count >= 6 else { throw ServeAIError.poseTrackingFailed }
 
         await progress(AnalysisProgress(stage: .phases, fraction: 0.68, detail: "Anchoring visible serve events"))
-        let metrics = metricsCalculator.calculate(
+        var metrics = metricsCalculator.calculate(
             frames: tracked,
             phases: phases,
             cameraAngle: cameraAngle
@@ -105,6 +108,32 @@ struct VisionPoseAnalysisService: ServeAnalysisService {
             phases: phases,
             cameraAngle: cameraAngle
         )
+        let objectSummary: ExperimentalObjectPerceptionSummary?
+        if let experimentalObjectPerception {
+            objectSummary = try? await experimentalObjectPerception.analyze(
+                frames: extracted.frames,
+                poses: tracked,
+                phases: phases
+            )
+        } else {
+            objectSummary = nil
+        }
+        if let objectSummary, objectSummary.sampledFrameCount > 0 {
+            metrics.append(TechnicalMetric(
+                title: "Experimental ball-track coverage",
+                value: "\(Int((objectSummary.ballTrackCoverage * 100).rounded()))%",
+                context: "Debug-only pose-centered detector; not used in phase scores or to claim ball-racket impact.",
+                confidence: .low,
+                relatedPhase: .ballToss
+            ))
+            metrics.append(TechnicalMetric(
+                title: "Experimental racket-track coverage",
+                value: "\(Int((objectSummary.racketTrackCoverage * 100).rounded()))%",
+                context: "Debug-only one-participant pilot; not used to score racket drop or pronation.",
+                confidence: .low,
+                relatedPhase: .racketDrop
+            ))
+        }
 
         await progress(AnalysisProgress(stage: .technique, fraction: 0.82, detail: "Calculating evidence-based estimates"))
         let missing = missingAreas(in: tracked)
@@ -133,6 +162,12 @@ struct VisionPoseAnalysisService: ServeAnalysisService {
         ]
         if !missing.isEmpty {
             limitations.append(AnalysisLimitation(title: "Intermittent visibility", detail: "Often missing or obscured: \(missing.joined(separator: ", "))."))
+        }
+        if objectSummary != nil {
+            limitations.append(AnalysisLimitation(
+                title: "Experimental object pilot",
+                detail: "A Debug-only detector screened pose-centered crops for ball and racket visibility. Its one-participant accuracy is not representative, and its outputs do not affect the serve score, coaching priority, contact claim, racket-drop score, or pronation score."
+            ))
         }
         let metadata = VideoMetadata(duration: extracted.metadata.duration, width: extracted.metadata.width, height: extracted.metadata.height, nominalFrameRate: extracted.metadata.nominalFrameRate, usableFrames: tracked.count, sampledFrames: extracted.metadata.sampledFrames)
         await progress(AnalysisProgress(stage: .feedback, fraction: 1, detail: "On-device report ready"))

@@ -184,7 +184,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -eu\nif [ \"${CONFIGURATION}\" != \"Release\" ]; then\n  exit 0\nfi\nbundle_path=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\nif [ ! -d \"${bundle_path}\" ]; then\n  exit 0\nfi\nfor forbidden_path in \"${bundle_path}\"/ServeAIEvaluationCandidate* \"${bundle_path}\"/EvaluationCandidate \"${bundle_path}\"/ServeAITennisPseudoCoach*; do\n  if [ -e \"${forbidden_path}\" ]; then\n    echo \"error: unvalidated model artifact reached the Release app bundle: ${forbidden_path}\" >&2\n    exit 1\n  fi\ndone\n";
+			shellScript = "set -eu\nif [ \"${CONFIGURATION}\" != \"Release\" ]; then\n  exit 0\nfi\nbundle_path=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\nif [ ! -d \"${bundle_path}\" ]; then\n  exit 0\nfi\nfor forbidden_path in \"${bundle_path}\"/ServeAIEvaluationCandidate* \"${bundle_path}\"/EvaluationCandidate \"${bundle_path}\"/ServeAITennisPseudoCoach* \"${bundle_path}\"/ServeAIRacketBallPoseROIContextPilot*; do\n  if [ -e \"${forbidden_path}\" ]; then\n    echo \"error: unvalidated model artifact reached the Release app bundle: ${forbidden_path}\" >&2\n    exit 1\n  fi\ndone\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -292,6 +292,7 @@
 				EXCLUDED_SOURCE_FILE_NAMES = (
 					"ServeAIEvaluationCandidate*",
 					ServeAITennisPseudoCoach.mlmodel,
+					"ServeAIRacketBallPoseROIContextPilot*",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = ServeAI;

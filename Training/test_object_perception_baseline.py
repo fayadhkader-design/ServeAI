@@ -63,6 +63,23 @@ class ObjectPerceptionBaselineTests(unittest.TestCase):
         self.assertLess(held["tennisRacket"]["recall"], gate["minimumRacketRecall"])
         self.assertLess(held["tennisBall"]["recall"], gate["minimumBallRecallDuringTossThroughContact"])
 
+    def test_pose_roi_pilot_cannot_modify_shipping_coaching(self):
+        pilot = self.report["poseCenteredContextRegionExperiment"]
+        integration = pilot["debugIntegration"]
+        self.assertFalse(pilot["releaseEligible"])
+        self.assertFalse(pilot["bundledInRelease"])
+        self.assertTrue(integration["excludedFromReleaseBuild"])
+        self.assertFalse(integration["affectsOverallScore"])
+        self.assertFalse(integration["affectsPhaseScores"])
+        self.assertFalse(integration["affectsCoachingPriority"])
+        self.assertFalse(integration["claimsBallRacketImpact"])
+        self.assertFalse(integration["claimsPronation"])
+
+    def test_release_project_excludes_pose_roi_pilot_artifact(self):
+        project = (ROOT.parent / "ServeAI.xcodeproj" / "project.pbxproj").read_text()
+        self.assertIn('"ServeAIRacketBallPoseROIContextPilot*"', project)
+        self.assertIn('bundle_path}\\"/ServeAIRacketBallPoseROIContextPilot*', project)
+
 
 if __name__ == "__main__":
     unittest.main()

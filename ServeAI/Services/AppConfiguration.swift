@@ -76,7 +76,8 @@ enum ServiceFactory {
                 phaseDetector: HeuristicServePhaseDetector(),
                 metricsCalculator: ServeMetricsCalculator(),
                 confidenceCalculator: AnalysisConfidenceCalculator(),
-                feedbackGenerator: ServeFeedbackGenerator()
+                feedbackGenerator: ServeFeedbackGenerator(),
+                experimentalObjectPerception: experimentalObjectPerceptionService()
             )
         case .coreML:
             CoreMLServeAnalysisService(
@@ -120,5 +121,13 @@ enum ServiceFactory {
             )
 #endif
         }
+    }
+
+    private static func experimentalObjectPerceptionService() -> (any ExperimentalObjectPerceptionAnalyzing)? {
+#if DEBUG
+        try? BundledExperimentalObjectPerceptionService()
+#else
+        nil
+#endif
     }
 }

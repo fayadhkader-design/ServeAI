@@ -18,6 +18,18 @@ private struct DatasetRecord: Decodable {
     let boxes: [GroundTruthBox]
 }
 
+private struct KeypointValue: Decodable {
+    let status: String
+    let x: Double?
+    let y: Double?
+}
+
+private struct KeypointRecord: Decodable {
+    let sampleID: String
+    let localImage: String
+    let points: [String: KeypointValue]
+}
+
 private struct Detection {
     let label: String
     let confidence: Double
@@ -42,6 +54,14 @@ private struct ClassMetrics {
         let denominator = truePositive + falseNegative
         return denominator == 0 ? 0 : Double(truePositive) / Double(denominator)
     }
+}
+
+private struct CenterMetrics {
+    var visibleCount = 0
+    var truePositive = 0
+    var falsePositive = 0
+    var falseNegative = 0
+    var matchedDistances: [Double] = []
 }
 
 private struct EvaluationError: Error, CustomStringConvertible {
@@ -84,6 +104,14 @@ private func records(at path: URL) throws -> [DatasetRecord] {
     let decoder = JSONDecoder()
     return try text.split(separator: "\n").map { line in
         try decoder.decode(DatasetRecord.self, from: Data(line.utf8))
+    }
+}
+
+private func keypointRecords(at path: URL) throws -> [KeypointRecord] {
+    let text = try String(contentsOf: path, encoding: .utf8)
+    let decoder = JSONDecoder()
+    return try text.split(separator: "\n").map { line in
+        try decoder.decode(KeypointRecord.self, from: Data(line.utf8))
     }
 }
 
@@ -188,6 +216,44 @@ private func evaluate(
     return metrics
 }
 
+private func evaluateBallCenters(
+    records: [KeypointRecord],
+    datasetDirectory: URL,
+    model: MLModel,
+    confidenceThreshold: Double,
+    maximumCenterDistance: Double
+) throws -> CenterMetrics {
+    var metrics = CenterMetrics()
+    for record in records {
+        let predictions = try detections(
+            model: model,
+            imageURL: datasetDirectory.appendingPathComponent(record.localImage),
+            confidenceThreshold: confidenceThreshold,
+            iouThreshold: 0.45
+        ).filter { $0.label == "tennis_ball" }
+        guard let ball = record.points["ballCenter"],
+              ball.status == "visible", let x = ball.x, let y = ball.y else {
+            metrics.falsePositive += predictions.count
+            continue
+        }
+        metrics.visibleCount += 1
+        let distances = predictions.map { detection in
+            let centerX = (detection.xmin + detection.xmax) / 2
+            let centerY = (detection.ymin + detection.ymax) / 2
+            return hypot(centerX - x, centerY - y)
+        }
+        guard let best = distances.min(), best <= maximumCenterDistance else {
+            metrics.falseNegative += 1
+            metrics.falsePositive += predictions.count
+            continue
+        }
+        metrics.truePositive += 1
+        metrics.matchedDistances.append(best)
+        metrics.falsePositive += max(0, predictions.count - 1)
+    }
+    return metrics
+}
+
 private func usage() -> Never {
     fputs("Usage: evaluate_coreml_racket_ball_detector.swift MODEL.mlmodelc DATASET_DIR [CONFIDENCE]\n", stderr)
     exit(2)
@@ -214,6 +280,32 @@ do {
         confidenceThreshold: confidenceThreshold,
         matchIoU: 0.50
     )
+    let keypointPath = datasetDirectory.appendingPathComponent("keypoints.jsonl")
+    let ballCenterResult: CenterMetrics? = FileManager.default.fileExists(atPath: keypointPath.path)
+        ? try evaluateBallCenters(
+            records: keypointRecords(at: keypointPath),
+            datasetDirectory: datasetDirectory,
+            model: model,
+            confidenceThreshold: confidenceThreshold,
+            maximumCenterDistance: 0.06
+        )
+        : nil
+    let ballCenterJSON: Any = ballCenterResult.map { value in
+        let meanDistance = value.matchedDistances.isEmpty
+            ? 0
+            : value.matchedDistances.reduce(0, +) / Double(value.matchedDistances.count)
+        let precisionDenominator = value.truePositive + value.falsePositive
+        return [
+            "visibleCount": value.visibleCount,
+            "truePositive": value.truePositive,
+            "falsePositive": value.falsePositive,
+            "falseNegative": value.falseNegative,
+            "precision": precisionDenominator == 0 ? 0 : Double(value.truePositive) / Double(precisionDenominator),
+            "recall": value.visibleCount == 0 ? 0 : Double(value.truePositive) / Double(value.visibleCount),
+            "maximumNormalizedCenterDistance": 0.06,
+            "meanMatchedNormalizedCenterDistance": meanDistance
+        ] as [String: Any]
+    } ?? NSNull()
     let output: [String: Any] = [
         "schemaVersion": 1,
         "purpose": "Object-perception baseline only; not serve-technique accuracy.",
@@ -233,6 +325,7 @@ do {
                 "meanMatchedIoU": meanIoU
             ] as [String: Any])
         }),
+        "ballCenterMetrics": ballCenterJSON,
         "releaseInterpretation": [
             "canEstablishServeTechniqueAccuracy": false,
             "canEstablishPronationAccuracy": false
