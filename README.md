@@ -52,7 +52,7 @@ xcodebuild -project ServeAI.xcodeproj -scheme ServeAI \
 
 ## Analysis modes
 
-All implementations conform to `ServeAnalysisService` and feed the same processing, persistence, and report UI. Every imported or recorded clip now passes through an on-device recording-quality gate before analysis, including in mock mode.
+All implementations conform to `ServeAnalysisService` and feed the same processing, persistence, and report UI. Every imported or recorded clip can be narrowed to one serve with accessible start/end controls; ServeAI exports that range locally and runs the on-device recording-quality gate against the exact prepared clip before analysis, including in mock mode.
 
 The Home menu also contains **Pilot data capture** for the frozen 300-slot research protocol. Entering a slot locks its camera, skill, resolution, frame rate, participant, and collection cohorts before recording. For the 50 intentional failure slots, a rejected clip can be saved as a clearly marked research sample if it still contains enough authentic single-player pose evidence. That path never generates or displays a score, phase grade, technique correction, coaching priority, or drill, and it never weakens the normal user-facing quality gate.
 
@@ -142,7 +142,7 @@ PhotosPicker itself uses Apple's privacy-preserving picker. Camera and microphon
 - Apple body pose does not detect the racket or ball. Racket-drop and pronation scores are limited wrist/elbow motion proxies; racket-head speed, ball speed, exact toss placement, racket-head depth, and axial forearm rotation remain unavailable.
 - A single 2D view cannot recover precise depth, hip/shoulder separation, or out-of-plane rotation.
 - Dominant hand is not inferred automatically; the internal coach calibration flow records it explicitly for subgroup evaluation.
-- The user confirms the full clip. The `VideoClipSelection` abstraction is ready for start/end trimming, but a frame-accurate editor is not included.
+- The review screen provides 0.1-second start/end controls, selected-range replay, local AVFoundation export, and a fresh quality check of the exact range that will be analyzed. It is a precise time-range selector rather than a frame-thumbnail filmstrip.
 - Video pose overlays are not persisted in this MVP.
 - Camera capture must be tested on hardware; Simulator has no live camera.
 - Vision can reject videos with sustained ambiguity between similarly sized foreground players, inadequate usable frames, extreme occlusion, poor lighting, unsupported encoding, or incomplete framing. Small background spectators do not cause a multiple-player rejection when one athlete is clearly dominant.

@@ -13,12 +13,34 @@ struct VideoReviewView: View {
     @State private var isCheckingQuality = true
     @State private var qualityReport: RecordingQualityReport?
     @State private var error: ServeAIError?
+    @State private var sourceDuration: TimeInterval?
+    @State private var clipStart: TimeInterval = 0
+    @State private var clipEnd: TimeInterval = 0
+    @State private var preparedClipURL: URL?
+    @State private var assessedSelection: VideoClipSelection?
+    @State private var playbackBoundaryObserver: Any?
+    private let clipExporter: any VideoClipExporting
 
-    private var clipSelection: VideoClipSelection { .fullClip(videoURL) }
+    private var clipSelection: VideoClipSelection {
+        guard let sourceDuration else { return .fullClip(videoURL) }
+        if clipStart <= 0.05, clipEnd >= sourceDuration - 0.05 {
+            return .fullClip(videoURL)
+        }
+        return VideoClipSelection(sourceURL: videoURL, startTime: clipStart, endTime: clipEnd)
+    }
 
-    init(videoURL: URL, angle: CameraAngle) {
+    private var isCurrentSelectionAssessed: Bool {
+        assessedSelection == clipSelection && preparedClipURL != nil && qualityReport != nil
+    }
+
+    init(
+        videoURL: URL,
+        angle: CameraAngle,
+        clipExporter: any VideoClipExporting = AVVideoClipExporter()
+    ) {
         self.videoURL = videoURL
         self.angle = angle
+        self.clipExporter = clipExporter
         _player = State(initialValue: AVPlayer(url: videoURL))
     }
 
@@ -33,7 +55,7 @@ struct VideoReviewView: View {
                         .background(ServeAITheme.deepSurface)
                         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                         .accessibilityLabel("Serve video preview")
-                    Text("FULL CLIP · \(angle.title.uppercased())")
+                    Text("\(clipSelection.usesFullClip ? "FULL" : "SELECTED") CLIP · \(angle.title.uppercased())")
                         .font(ServeAITheme.mono(.caption2, size: 9.5, bold: true))
                         .tracking(0.6)
                         .foregroundStyle(ServeAITheme.brand)
@@ -46,7 +68,7 @@ struct VideoReviewView: View {
 
                 HStack {
                     Button {
-                        player.seek(to: .zero)
+                        player.seek(to: CMTime(seconds: clipStart, preferredTimescale: 600))
                         player.play()
                     } label: {
                         Label("REPLAY", systemImage: "arrow.counterclockwise")
@@ -62,19 +84,20 @@ struct VideoReviewView: View {
                 HStack(spacing: 6) {
                     GuideTag(text: angle == .side ? "SIDE ANGLE" : "REAR ANGLE")
                     GuideTag(text: "FULL BODY")
-                    GuideTag(text: "FULL CLIP")
+                    GuideTag(text: clipSelection.usesFullClip ? "FULL CLIP" : "TRIMMED CLIP")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
+                clipSelectionCard
                 recordingQualityCard
 
                 if let error {
                     ErrorBanner(error: error, actionTitle: "CHECK AGAIN") {
-                        Task { await assessRecordingQuality() }
+                        Task { await assessRecordingQuality(for: clipSelection) }
                     }
                 }
 
-                Button { prepareAndAnalyze(clipSelection.sourceURL) } label: {
+                Button { prepareAndAnalyze(preparedClipURL ?? clipSelection.sourceURL) } label: {
                     HStack(spacing: 9) {
                         if isPreparing || isCheckingQuality { ProgressView().tint(ServeAITheme.onBrand) }
                         Text(primaryButtonTitle)
@@ -82,7 +105,12 @@ struct VideoReviewView: View {
                     }
                 }
                 .buttonStyle(ServeAIPrimaryButtonStyle())
-                .disabled(isPreparing || isCheckingQuality || qualityReport?.isAcceptable != true)
+                .disabled(
+                    isPreparing
+                        || isCheckingQuality
+                        || !isCurrentSelectionAssessed
+                        || qualityReport?.isAcceptable != true
+                )
 
                 if canSaveRejectedPilotSample {
                     VStack(alignment: .leading, spacing: 10) {
@@ -115,11 +143,6 @@ struct VideoReviewView: View {
                     }
                     .buttonStyle(ServeAISecondaryButtonStyle())
                 }
-
-                Text("This MVP analyzes the full selected clip. Trim in Photos first when the video contains multiple serves.")
-                    .font(ServeAITheme.body(.footnote, size: 12))
-                    .foregroundStyle(ServeAITheme.mutedInk)
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxWidth: 520)
             .padding(.horizontal, 20)
@@ -129,10 +152,101 @@ struct VideoReviewView: View {
         .scrollIndicators(.hidden)
         .serveAIBackground()
         .toolbar(.hidden, for: .navigationBar)
-        .task(id: videoURL) { await assessRecordingQuality() }
-        .onDisappear { player.pause() }
+        .task(id: videoURL) { await loadVideoAndAssess() }
+        .onDisappear {
+            player.pause()
+            removePlaybackBoundaryObserver()
+        }
+        .onChange(of: clipStart) { _, _ in selectionDidChange(seekToStart: true) }
+        .onChange(of: clipEnd) { _, _ in selectionDidChange(seekToStart: false) }
         .onChange(of: replacementItem) { _, item in
             importReplacement(item)
+        }
+    }
+
+    @ViewBuilder
+    private var clipSelectionCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("SELECT ONE SERVE")
+                    .font(ServeAITheme.body(.subheadline, size: 15, weight: .bold))
+                Spacer()
+                if sourceDuration != nil {
+                    Text(formatDuration(max(0, clipEnd - clipStart)))
+                        .font(ServeAITheme.mono(.caption, size: 11, bold: true))
+                        .foregroundStyle(ServeAITheme.brand)
+                }
+            }
+
+            Text("Set the start just before the toss and the end after landing. Only this range is checked and analyzed.")
+                .font(ServeAITheme.body(.caption, size: 12))
+                .foregroundStyle(ServeAITheme.mutedInk)
+
+            if let sourceDuration, sourceDuration > VideoClipSelection.minimumDuration + 0.05 {
+                clipSlider(
+                    label: "START",
+                    value: $clipStart,
+                    range: 0...max(0, clipEnd - VideoClipSelection.minimumDuration)
+                )
+                clipSlider(
+                    label: "END",
+                    value: $clipEnd,
+                    range: min(sourceDuration, clipStart + VideoClipSelection.minimumDuration)...sourceDuration
+                )
+
+                HStack {
+                    Text("SOURCE \(formatDuration(sourceDuration))")
+                    Spacer()
+                    Text("RANGE \(formatDuration(clipStart))–\(formatDuration(clipEnd))")
+                }
+                .font(ServeAITheme.mono(.caption2, size: 9, bold: true))
+                .foregroundStyle(ServeAITheme.faintInk)
+
+                if !isCurrentSelectionAssessed, !isCheckingQuality {
+                    Button {
+                        Task { await assessRecordingQuality(for: clipSelection) }
+                    } label: {
+                        Label("CHECK SELECTED CLIP", systemImage: "viewfinder")
+                    }
+                    .buttonStyle(ServeAISecondaryButtonStyle())
+                    .accessibilityHint("Exports this range and checks whether one complete serve is visible")
+                }
+            } else if sourceDuration != nil {
+                Label("This video is too short to contain a complete serve.", systemImage: "exclamationmark.triangle.fill")
+                    .font(ServeAITheme.body(.caption, size: 12, weight: .semibold))
+                    .foregroundStyle(ServeAITheme.orange)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            } else {
+                HStack(spacing: 10) {
+                    ProgressView().tint(ServeAITheme.brand)
+                    Text("READING VIDEO DURATION")
+                        .font(ServeAITheme.mono(.caption, size: 10, bold: true))
+                }
+                .frame(minHeight: 44)
+            }
+        }
+        .serveAISurface()
+    }
+
+    private func clipSlider(
+        label: String,
+        value: Binding<TimeInterval>,
+        range: ClosedRange<TimeInterval>
+    ) -> some View {
+        VStack(spacing: 6) {
+            HStack {
+                Text(label)
+                    .font(ServeAITheme.mono(.caption2, size: 9, bold: true))
+                    .foregroundStyle(ServeAITheme.mutedInk)
+                Spacer()
+                Text(formatDuration(value.wrappedValue))
+                    .font(ServeAITheme.mono(.caption, size: 11, bold: true))
+            }
+            Slider(value: value, in: range, step: 0.1)
+                .tint(ServeAITheme.brand)
+                .disabled(isCheckingQuality || isPreparing)
+                .accessibilityLabel("Clip \(label.lowercased())")
+                .accessibilityValue(formatDuration(value.wrappedValue))
         }
     }
 
@@ -230,12 +344,14 @@ struct VideoReviewView: View {
     private var primaryButtonTitle: String {
         if isCheckingQuality { return "CHECKING VIDEO" }
         if isPreparing { return "PREPARING CLIP" }
+        if !isCurrentSelectionAssessed { return "CHECK CLIP FIRST" }
         if qualityReport?.status == .rejected { return "FIX RECORDING TO CONTINUE" }
         return "READ MY SERVE"
     }
 
     private var canSaveRejectedPilotSample: Bool {
         guard let slot = appModel.activePilotSlot,
+              isCurrentSelectionAssessed,
               slot.isFailureExample,
               qualityReport?.status == .rejected else { return false }
         return slot.cameraAngle == angle
@@ -257,12 +373,43 @@ struct VideoReviewView: View {
         }
     }
 
-    private func assessRecordingQuality() async {
+    private func loadVideoAndAssess() async {
+        isCheckingQuality = true
+        error = nil
+        do {
+            let duration = try await AVURLAsset(url: videoURL).load(.duration).seconds
+            guard duration.isFinite, duration > 0 else { throw ServeAIError.corruptedVideo }
+            sourceDuration = duration
+            clipStart = 0
+            clipEnd = duration
+            installPlaybackBoundaryObserver()
+            await assessRecordingQuality(for: .fullClip(videoURL))
+        } catch is CancellationError {
+            return
+        } catch let serveError as ServeAIError {
+            isCheckingQuality = false
+            error = serveError
+        } catch {
+            isCheckingQuality = false
+            self.error = .corruptedVideo
+        }
+    }
+
+    private func assessRecordingQuality(for selection: VideoClipSelection) async {
         isCheckingQuality = true
         qualityReport = nil
         error = nil
         do {
-            qualityReport = try await appModel.recordingQualityAssessor.assess(videoURL: videoURL, cameraAngle: angle)
+            let preparedURL = try await clipExporter.prepare(selection)
+            try Task.checkCancellation()
+            let report = try await appModel.recordingQualityAssessor.assess(
+                videoURL: preparedURL,
+                cameraAngle: angle
+            )
+            try Task.checkCancellation()
+            preparedClipURL = preparedURL
+            assessedSelection = selection
+            qualityReport = report
         } catch is CancellationError {
             return
         } catch let serveError as ServeAIError {
@@ -271,6 +418,44 @@ struct VideoReviewView: View {
             self.error = .poseTrackingFailed
         }
         isCheckingQuality = false
+    }
+
+    private func selectionDidChange(seekToStart: Bool) {
+        guard sourceDuration != nil, !isCheckingQuality else { return }
+        qualityReport = nil
+        assessedSelection = nil
+        preparedClipURL = nil
+        error = nil
+        installPlaybackBoundaryObserver()
+        if seekToStart {
+            player.seek(to: CMTime(seconds: clipStart, preferredTimescale: 600))
+        }
+    }
+
+    private func installPlaybackBoundaryObserver() {
+        removePlaybackBoundaryObserver()
+        guard let sourceDuration, clipEnd < sourceDuration - 0.05 else { return }
+        let selectedStart = clipStart
+        playbackBoundaryObserver = player.addBoundaryTimeObserver(
+            forTimes: [NSValue(time: CMTime(seconds: clipEnd, preferredTimescale: 600))],
+            queue: .main
+        ) { [weak player] in
+            player?.pause()
+            player?.seek(to: CMTime(seconds: selectedStart, preferredTimescale: 600))
+        }
+    }
+
+    private func removePlaybackBoundaryObserver() {
+        guard let playbackBoundaryObserver else { return }
+        player.removeTimeObserver(playbackBoundaryObserver)
+        self.playbackBoundaryObserver = nil
+    }
+
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        guard duration.isFinite, duration >= 0 else { return "0:00.0" }
+        let minutes = Int(duration) / 60
+        let seconds = duration - Double(minutes * 60)
+        return String(format: "%d:%04.1f", minutes, seconds)
     }
 
     private func saveRejectedPilotSample() {
@@ -283,7 +468,7 @@ struct VideoReviewView: View {
         Task {
             do {
                 let analysis = try await ResearchCaptureService().makeRejectedSample(
-                    videoURL: videoURL,
+                    videoURL: preparedClipURL ?? videoURL,
                     slot: slot,
                     qualityReport: qualityReport
                 )

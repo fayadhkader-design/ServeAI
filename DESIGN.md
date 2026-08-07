@@ -34,7 +34,7 @@ Performance and evidence quality never rely on color alone. Numeric values, grad
 
 - Home reproduces the prototype’s rallying headline, streak/read chips, last-serve hero, practice and clip tiles, and bottom analyze CTA. Its avatar menu keeps History and Progress reachable without adding a tab bar that was absent from the reference.
 - Drop the Clip maps the prototype upload state onto the real PhotosPicker and camera route, retains side/rear angle choice, and enables the CTA only after a usable selection.
-- Check the Clip preserves replay, replacement, retake, persistence, and full-clip disclosure before analysis.
+- Check the Clip preserves replay, replacement, retake, and persistence while adding native start/end controls. The selected one-serve range is replayed, exported on-device, and rechecked before analysis.
 - Analyzing maps real progress stages onto the rotating multi-color dial and explicitly identifies simulated versus on-device processing.
 - The Verdict maps real score, grade, video-evidence quality, separate model assurance, coaching priority, provenance, detailed phases, drills, measurements, and limitations into the reference hierarchy.
 - Frame by Frame seeks the real video to each measured phase and shows the phase note, tag, score color, scrub position, and visible previous/next controls.

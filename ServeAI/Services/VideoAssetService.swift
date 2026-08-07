@@ -10,6 +10,91 @@ protocol VideoAssetManaging: Sendable {
     @discardableResult func cleanupOrphanedVideos(referencedURLs: [URL]) throws -> Int
 }
 
+protocol VideoClipExporting: Sendable {
+    func prepare(_ selection: VideoClipSelection) async throws -> URL
+}
+
+struct AVVideoClipExporter: VideoClipExporting {
+    func prepare(_ selection: VideoClipSelection) async throws -> URL {
+        let asset = AVURLAsset(url: selection.sourceURL)
+        guard (try? await asset.load(.isReadable)) == true else {
+            throw ServeAIError.corruptedVideo
+        }
+
+        let duration = try await asset.load(.duration).seconds
+        let range = try selection.validated(sourceDuration: duration)
+        guard !selection.usesFullClip else { return selection.sourceURL }
+
+        guard let exportSession = AVAssetExportSession(
+            asset: asset,
+            presetName: AVAssetExportPresetHighestQuality
+        ) else {
+            throw ServeAIError.unsupportedVideo
+        }
+
+        let supportedTypes = exportSession.supportedFileTypes
+        let fileType: AVFileType
+        let fileExtension: String
+        if supportedTypes.contains(.mp4) {
+            fileType = .mp4
+            fileExtension = "mp4"
+        } else if supportedTypes.contains(.mov) {
+            fileType = .mov
+            fileExtension = "mov"
+        } else {
+            throw ServeAIError.unsupportedVideo
+        }
+
+        let outputURL = try VideoStorage.makeDestination(extension: fileExtension)
+        exportSession.outputURL = outputURL
+        exportSession.outputFileType = fileType
+        exportSession.shouldOptimizeForNetworkUse = false
+        exportSession.timeRange = CMTimeRange(
+            start: CMTime(seconds: range.lowerBound, preferredTimescale: 600),
+            duration: CMTime(seconds: range.upperBound - range.lowerBound, preferredTimescale: 600)
+        )
+
+        do {
+            try await export(exportSession)
+            return outputURL
+        } catch {
+            try? FileManager.default.removeItem(at: outputURL)
+            if error is CancellationError { throw error }
+            throw ServeAIError.recordingFailed("The selected clip could not be prepared. \(error.localizedDescription)")
+        }
+    }
+
+    private func export(_ session: AVAssetExportSession) async throws {
+        let box = ExportSessionBox(session)
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                box.session.exportAsynchronously {
+                    switch box.session.status {
+                    case .completed:
+                        continuation.resume()
+                    case .cancelled:
+                        continuation.resume(throwing: CancellationError())
+                    case .failed:
+                        continuation.resume(throwing: box.session.error ?? ServeAIError.corruptedVideo)
+                    default:
+                        continuation.resume(throwing: box.session.error ?? ServeAIError.corruptedVideo)
+                    }
+                }
+            }
+        } onCancel: {
+            box.session.cancelExport()
+        }
+    }
+}
+
+private final class ExportSessionBox: @unchecked Sendable {
+    let session: AVAssetExportSession
+
+    init(_ session: AVAssetExportSession) {
+        self.session = session
+    }
+}
+
 struct LocalVideoAssetManager: VideoAssetManaging {
     func thumbnailData(for videoURL: URL) async -> Data? {
         let asset = AVURLAsset(url: videoURL)
