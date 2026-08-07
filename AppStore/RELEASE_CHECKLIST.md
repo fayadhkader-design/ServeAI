@@ -24,7 +24,7 @@
 
 - [ ] Confirm active paid Apple Developer Program membership and agreements.
 - [ ] Create the ServeAI app record using bundle ID `com.serveai.app`.
-- [ ] Verify the deployed privacy policy and support pages at the GitHub Pages HTTPS URLs recorded in `APP_STORE_COPY.md`.
+- [x] Verify the deployed privacy policy and support pages at the GitHub Pages HTTPS URLs recorded in `APP_STORE_COPY.md` (HTTP 200 with matching local content on August 7, 2026).
 - [x] Replace every placeholder in the local policy/support copy without publishing private contact information.
 - [ ] Complete App Privacy as “Data Not Collected” only if the shipped build still has no transmission or third-party collection.
 - [ ] Complete age rating, content rights, category, DSA trader status, export-compliance, and availability questions.
