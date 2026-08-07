@@ -23,13 +23,13 @@
 ## App Store Connect
 
 - [ ] Confirm active paid Apple Developer Program membership and agreements.
-- [ ] Create the ServeAI app record using bundle ID `com.serveai.app`.
+- [x] Create the ServeAI app record using bundle ID `com.serveai.app`.
 - [x] Verify the deployed privacy policy and support pages at the GitHub Pages HTTPS URLs recorded in `APP_STORE_COPY.md` (HTTP 200 with matching local content on August 7, 2026).
 - [x] Replace every placeholder in the local policy/support copy without publishing private contact information.
 - [ ] Complete App Privacy as “Data Not Collected” only if the shipped build still has no transmission or third-party collection.
 - [ ] Complete age rating, content rights, category, DSA trader status, export-compliance, and availability questions.
 - [ ] Capture final required iPhone screenshots from the signed Release candidate.
-- [ ] Archive, validate, and upload build 1.
+- [x] Archive, validate, and upload build 3.
 - [ ] Add App Review contact details and the prepared review notes.
 - [ ] Test through internal TestFlight before requesting external TestFlight or App Review.
 

@@ -14,10 +14,10 @@ ServeAI is a native iPhone MVP for recording or importing one tennis serve and r
 ## Validation snapshot
 
 - Generic-device iOS Release build succeeds with store validation enabled.
-- 129 training, governance, and release tests pass; one hardware-only test is skipped.
+- 156 training, governance, and release tests pass; one hardware-only test is skipped.
 - 11 annotation-portal tests pass.
 - Release packaging excludes unvalidated and commercially uncleared model artifacts.
-- Build 1.0 (1) has been uploaded for internal TestFlight validation.
+- Build 1.0 (3) has been uploaded for internal TestFlight validation.
 
 ServeAI remains a validation beta. The shipping path uses Apple Vision pose
 estimation plus transparent geometry and scoring rules; its coaching output is
