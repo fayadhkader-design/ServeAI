@@ -255,7 +255,7 @@ private func evaluateBallCenters(
 }
 
 private func usage() -> Never {
-    fputs("Usage: evaluate_coreml_racket_ball_detector.swift MODEL.mlmodelc DATASET_DIR [CONFIDENCE]\n", stderr)
+    fputs("Usage: evaluate_coreml_racket_ball_detector.swift MODEL.mlmodelc DATASET_DIR [CONFIDENCE] [--per-frame]\n", stderr)
     exit(2)
 }
 
@@ -265,6 +265,7 @@ let datasetDirectory = URL(fileURLWithPath: CommandLine.arguments[2])
 let confidenceThreshold = CommandLine.arguments.count > 3
     ? Double(CommandLine.arguments[3]) ?? 0.10
     : 0.10
+let includePerFrame = CommandLine.arguments.contains("--per-frame")
 
 do {
     let configuration = MLModelConfiguration()
@@ -306,7 +307,7 @@ do {
             "meanMatchedNormalizedCenterDistance": meanDistance
         ] as [String: Any]
     } ?? NSNull()
-    let output: [String: Any] = [
+    var output: [String: Any] = [
         "schemaVersion": 1,
         "purpose": "Object-perception baseline only; not serve-technique accuracy.",
         "imageCount": datasetRecords.count,
@@ -331,6 +332,29 @@ do {
             "canEstablishPronationAccuracy": false
         ]
     ]
+    if includePerFrame {
+        output["frames"] = try datasetRecords.map { record in
+            let predictions = try detections(
+                model: model,
+                imageURL: datasetDirectory.appendingPathComponent(record.localImage),
+                confidenceThreshold: confidenceThreshold,
+                iouThreshold: 0.45
+            )
+            return [
+                "imageID": record.imageID,
+                "detections": predictions.map { detection in
+                    [
+                        "label": detection.label,
+                        "confidence": detection.confidence,
+                        "xmin": detection.xmin,
+                        "xmax": detection.xmax,
+                        "ymin": detection.ymin,
+                        "ymax": detection.ymax
+                    ] as [String: Any]
+                }
+            ] as [String: Any]
+        }
+    }
     let encoded = try JSONSerialization.data(withJSONObject: output, options: [.prettyPrinted, .sortedKeys])
     print(String(decoding: encoded, as: UTF8.self))
 } catch {
