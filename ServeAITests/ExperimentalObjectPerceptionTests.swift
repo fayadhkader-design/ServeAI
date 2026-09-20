@@ -2,6 +2,49 @@ import XCTest
 @testable import ServeAI
 
 final class ExperimentalObjectPerceptionTests: XCTestCase {
+    private func racket(_ confidence: Double, x: Double, y: Double = 0.5) -> ObjectDetectionCandidate {
+        ObjectDetectionCandidate(
+            label: "tennis_racket", confidence: confidence,
+            xmin: x - 0.02, xmax: x + 0.02,
+            ymin: y - 0.02, ymax: y + 0.02
+        )
+    }
+
+    func testSequenceSelectorChoosesOneSpatiallyConsistentRacketPerObservedFrame() {
+        let frames = [
+            [racket(0.95, x: 0.4)],
+            [racket(0.90, x: 0.42), racket(0.94, x: 0.8)],
+            [racket(0.91, x: 0.45)]
+        ]
+        let selected = ObjectDetectionSequenceSelector.select(
+            frames: frames, label: "tennis_racket", minimumConfidence: 0.8
+        )
+        XCTAssertEqual(selected.count, 3)
+        XCTAssertEqual(selected[1].candidate.centerX, 0.42, accuracy: 0.0001)
+        XCTAssertEqual(selected.map(\.linkedToPrevious), [false, true, true])
+    }
+
+    func testSequenceSelectorDoesNotFillMissingFramesOrClaimContinuityAcrossLongGaps() {
+        let frames = [[racket(0.95, x: 0.4)], [], [], [racket(0.9, x: 0.41)]]
+        let selected = ObjectDetectionSequenceSelector.select(
+            frames: frames, label: "tennis_racket", minimumConfidence: 0.8
+        )
+        XCTAssertEqual(selected.map(\.frameIndex), [0, 3])
+        XCTAssertFalse(selected[1].linkedToPrevious)
+    }
+
+    func testSequenceSelectorRejectsInvalidAndLowConfidenceBoxes() {
+        let invalid = ObjectDetectionCandidate(
+            label: "tennis_racket", confidence: 0.99,
+            xmin: 0.8, xmax: 0.2, ymin: 0.4, ymax: 0.6
+        )
+        let selected = ObjectDetectionSequenceSelector.select(
+            frames: [[invalid, racket(0.79, x: 0.5)]],
+            label: "tennis_racket", minimumConfidence: 0.8
+        )
+        XCTAssertTrue(selected.isEmpty)
+    }
+
     func testPoseCenteredROIMatchesFrozenTrainingContract() throws {
         let pose = PoseFrame(
             timestamp: 1,
