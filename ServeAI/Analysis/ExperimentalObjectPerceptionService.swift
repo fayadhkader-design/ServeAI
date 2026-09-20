@@ -11,6 +11,8 @@ struct ExperimentalObjectPerceptionSummary: Codable, Hashable, Sendable {
     let fallbackPoseFrameCount: Int
     let ballDetectedFrameCount: Int
     let racketDetectedFrameCount: Int
+    let ballLinkedFrameCount: Int
+    let racketLinkedFrameCount: Int
 
     var ballTrackCoverage: Double {
         Double(ballDetectedFrameCount) / Double(max(sampledFrameCount, 1))
@@ -54,6 +56,24 @@ enum PoseCenteredObjectROI {
         let y = min(max(0, centerY - side / 2), height - side)
         return CGRect(x: x.rounded(), y: y.rounded(), width: side.rounded(), height: side.rounded())
     }
+
+    // Vision boxes use a bottom-left origin within the crop. Association must
+    // use full-frame coordinates because the pose-centered crop can move.
+    static func fullFrameBox(
+        for cropBox: CGRect,
+        crop: CGRect,
+        imageWidth: Int,
+        imageHeight: Int
+    ) -> CGRect {
+        let width = CGFloat(imageWidth)
+        let height = CGFloat(imageHeight)
+        return CGRect(
+            x: (crop.minX + cropBox.minX * crop.width) / width,
+            y: 1 - (crop.minY + (1 - cropBox.minY) * crop.height) / height,
+            width: cropBox.width * crop.width / width,
+            height: cropBox.height * crop.height / height
+        )
+    }
 }
 
 #if DEBUG
@@ -86,15 +106,16 @@ actor BundledExperimentalObjectPerceptionService: ExperimentalObjectPerceptionAn
                 directPoseFrameCount: 0,
                 fallbackPoseFrameCount: 0,
                 ballDetectedFrameCount: 0,
-                racketDetectedFrameCount: 0
+                racketDetectedFrameCount: 0,
+                ballLinkedFrameCount: 0,
+                racketLinkedFrameCount: 0
             )
         }
         let selectedFrames = criticalFrames(from: frames, phases: phases)
         let fallbackPose = medianFallbackPose(from: poses)
         var directPoseCount = 0
         var fallbackPoseCount = 0
-        var ballCount = 0
-        var racketCount = 0
+        var detectionsByFrame: [[ObjectDetectionCandidate]] = []
 
         for frame in selectedFrames {
             try Task.checkCancellation()
@@ -111,32 +132,60 @@ actor BundledExperimentalObjectPerceptionService: ExperimentalObjectPerceptionAn
                 for: pose,
                 imageWidth: frame.image.width,
                 imageHeight: frame.image.height
-            ), let crop = frame.image.cropping(to: roi) else { continue }
-            let labels = try detectedLabels(in: crop)
-            if labels.contains("tennis_ball") { ballCount += 1 }
-            if labels.contains("tennis_racket") { racketCount += 1 }
+            ), let crop = frame.image.cropping(to: roi) else {
+                detectionsByFrame.append([])
+                continue
+            }
+            detectionsByFrame.append(try detectedCandidates(
+                in: crop, cropRectangle: roi,
+                imageWidth: frame.image.width, imageHeight: frame.image.height
+            ))
         }
+        let balls = ObjectDetectionSequenceSelector.select(
+            frames: detectionsByFrame, label: "tennis_ball",
+            minimumConfidence: Self.confidenceThreshold
+        )
+        let rackets = ObjectDetectionSequenceSelector.select(
+            frames: detectionsByFrame, label: "tennis_racket",
+            minimumConfidence: Self.confidenceThreshold
+        )
         return ExperimentalObjectPerceptionSummary(
             modelIdentifier: Self.modelIdentifier,
             confidenceThreshold: Self.confidenceThreshold,
             sampledFrameCount: selectedFrames.count,
             directPoseFrameCount: directPoseCount,
             fallbackPoseFrameCount: fallbackPoseCount,
-            ballDetectedFrameCount: ballCount,
-            racketDetectedFrameCount: racketCount
+            ballDetectedFrameCount: balls.count,
+            racketDetectedFrameCount: rackets.count,
+            ballLinkedFrameCount: balls.filter(\.linkedToPrevious).count,
+            racketLinkedFrameCount: rackets.filter(\.linkedToPrevious).count
         )
     }
 
-    private func detectedLabels(in image: CGImage) throws -> Set<String> {
+    private func detectedCandidates(
+        in image: CGImage,
+        cropRectangle: CGRect,
+        imageWidth: Int,
+        imageHeight: Int
+    ) throws -> [ObjectDetectionCandidate] {
         let request = VNCoreMLRequest(model: visionModel)
         request.imageCropAndScaleOption = .scaleFill
         try VNImageRequestHandler(cgImage: image, orientation: .up).perform([request])
         let observations = request.results as? [VNRecognizedObjectObservation] ?? []
-        return Set(observations.flatMap { observation in
-            observation.labels.compactMap { label in
-                Double(label.confidence) >= Self.confidenceThreshold ? label.identifier : nil
+        return observations.flatMap { observation in
+            let box = PoseCenteredObjectROI.fullFrameBox(
+                for: observation.boundingBox, crop: cropRectangle,
+                imageWidth: imageWidth, imageHeight: imageHeight
+            )
+            return observation.labels.compactMap { label -> ObjectDetectionCandidate? in
+                guard Double(label.confidence) >= Self.confidenceThreshold else { return nil }
+                return ObjectDetectionCandidate(
+                    label: label.identifier, confidence: Double(label.confidence),
+                    xmin: Double(box.minX), xmax: Double(box.maxX),
+                    ymin: Double(box.minY), ymax: Double(box.maxY)
+                )
             }
-        })
+        }
     }
 
     private func criticalFrames(from frames: [VideoFrame], phases: [DetectedServePhase]) -> [VideoFrame] {

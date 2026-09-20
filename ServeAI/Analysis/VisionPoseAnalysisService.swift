@@ -133,6 +133,15 @@ struct VisionPoseAnalysisService: ServeAnalysisService {
                 confidence: .low,
                 relatedPhase: .racketDrop
             ))
+            if objectSummary.racketDetectedFrameCount > 1 {
+                metrics.append(TechnicalMetric(
+                    title: "Experimental racket continuity",
+                    value: "\(objectSummary.racketLinkedFrameCount)/\(objectSummary.racketDetectedFrameCount - 1) observed transitions",
+                    context: "Debug-only spatial association of detected boxes; gaps are not filled and this is not a measured racket path.",
+                    confidence: .low,
+                    relatedPhase: .racketDrop
+                ))
+            }
         }
 
         await progress(AnalysisProgress(stage: .technique, fraction: 0.82, detail: "Calculating evidence-based estimates"))

@@ -63,11 +63,24 @@ final class ExperimentalObjectPerceptionTests: XCTestCase {
         XCTAssertLessThan(roi.midY, 1_000)
     }
 
+    func testCropBoxMapsToFullFrameBeforeTemporalAssociation() {
+        let box = PoseCenteredObjectROI.fullFrameBox(
+            for: CGRect(x: 0.25, y: 0.5, width: 0.25, height: 0.25),
+            crop: CGRect(x: 200, y: 400, width: 400, height: 400),
+            imageWidth: 1_000, imageHeight: 2_000
+        )
+        XCTAssertEqual(box.minX, 0.3, accuracy: 0.0001)
+        XCTAssertEqual(box.maxX, 0.4, accuracy: 0.0001)
+        XCTAssertEqual(box.minY, 0.7, accuracy: 0.0001)
+        XCTAssertEqual(box.maxY, 0.75, accuracy: 0.0001)
+    }
+
     func testExperimentalCoverageIsTransparentAndBounded() {
         let summary = ExperimentalObjectPerceptionSummary(
             modelIdentifier: "pilot", confidenceThreshold: 0.8,
             sampledFrameCount: 10, directPoseFrameCount: 8, fallbackPoseFrameCount: 2,
-            ballDetectedFrameCount: 7, racketDetectedFrameCount: 4
+            ballDetectedFrameCount: 7, racketDetectedFrameCount: 4,
+            ballLinkedFrameCount: 5, racketLinkedFrameCount: 2
         )
         XCTAssertEqual(summary.ballTrackCoverage, 0.7, accuracy: 0.0001)
         XCTAssertEqual(summary.racketTrackCoverage, 0.4, accuracy: 0.0001)
