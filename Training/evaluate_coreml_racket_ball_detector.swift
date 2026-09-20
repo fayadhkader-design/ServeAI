@@ -1,4 +1,4 @@
-#!/usr/bin/env swift
+// Compile with ObjectDetectionSequenceSelector.swift; see Training/README.md.
 
 import CoreML
 import CoreVideo
@@ -28,16 +28,19 @@ private struct KeypointRecord: Decodable {
     let sampleID: String
     let localImage: String
     let points: [String: KeypointValue]
+    let roi: CropRect?
+    let sourcePixelWidth: Int?
+    let sourcePixelHeight: Int?
 }
 
-private struct Detection {
-    let label: String
-    let confidence: Double
-    let xmin: Double
-    let xmax: Double
-    let ymin: Double
-    let ymax: Double
+private struct CropRect: Decodable {
+    let x: Double
+    let y: Double
+    let width: Double
+    let height: Double
 }
+
+private typealias Detection = ObjectDetectionCandidate
 
 private struct ClassMetrics {
     var truePositive = 0
@@ -175,23 +178,79 @@ private func detections(
     return results
 }
 
+private func sourceDetection(_ detection: Detection, metadata: KeypointRecord) throws -> Detection {
+    guard let roi = metadata.roi,
+          let sourceWidth = metadata.sourcePixelWidth, sourceWidth > 0,
+          let sourceHeight = metadata.sourcePixelHeight, sourceHeight > 0 else {
+        throw EvaluationError(description: "temporal evaluation requires source dimensions and ROI for \(metadata.sampleID)")
+    }
+    return Detection(
+        label: detection.label, confidence: detection.confidence,
+        xmin: (roi.x + detection.xmin * roi.width) / Double(sourceWidth),
+        xmax: (roi.x + detection.xmax * roi.width) / Double(sourceWidth),
+        ymin: (roi.y + detection.ymin * roi.height) / Double(sourceHeight),
+        ymax: (roi.y + detection.ymax * roi.height) / Double(sourceHeight)
+    )
+}
+
+private func cropDetection(_ detection: Detection, metadata: KeypointRecord) throws -> Detection {
+    guard let roi = metadata.roi,
+          let sourceWidth = metadata.sourcePixelWidth, sourceWidth > 0,
+          let sourceHeight = metadata.sourcePixelHeight, sourceHeight > 0,
+          roi.width > 0, roi.height > 0 else {
+        throw EvaluationError(description: "temporal evaluation requires valid ROI geometry for \(metadata.sampleID)")
+    }
+    return Detection(
+        label: detection.label, confidence: detection.confidence,
+        xmin: (detection.xmin * Double(sourceWidth) - roi.x) / roi.width,
+        xmax: (detection.xmax * Double(sourceWidth) - roi.x) / roi.width,
+        ymin: (detection.ymin * Double(sourceHeight) - roi.y) / roi.height,
+        ymax: (detection.ymax * Double(sourceHeight) - roi.y) / roi.height
+    )
+}
+
+private func temporallySelectedDetections(
+    records: [DatasetRecord],
+    rawDetections: [[Detection]],
+    keypoints: [KeypointRecord],
+    confidenceThreshold: Double
+) throws -> (frames: [[Detection]], linkedPairs: [String: Int]) {
+    let metadataByID = Dictionary(uniqueKeysWithValues: keypoints.map { ($0.sampleID, $0) })
+    let metadata = try records.map { record -> KeypointRecord in
+        guard let value = metadataByID[record.imageID], value.localImage == record.localImage else {
+            throw EvaluationError(description: "missing matching ROI metadata for \(record.imageID)")
+        }
+        return value
+    }
+    let sourceFrames = try zip(rawDetections, metadata).map { detections, info in
+        try detections.map { try sourceDetection($0, metadata: info) }
+    }
+    var selected = Array(repeating: [Detection](), count: records.count)
+    var linkedPairs: [String: Int] = [:]
+    for label in tennisClassIndices.keys.sorted() {
+        let track = ObjectDetectionSequenceSelector.select(
+            frames: sourceFrames, label: label,
+            minimumConfidence: confidenceThreshold
+        )
+        linkedPairs[label] = track.filter(\.linkedToPrevious).count
+        for observation in track {
+            selected[observation.frameIndex].append(try cropDetection(
+                observation.candidate, metadata: metadata[observation.frameIndex]
+            ))
+        }
+    }
+    return (selected, linkedPairs)
+}
+
 private func evaluate(
     records: [DatasetRecord],
-    datasetDirectory: URL,
-    model: MLModel,
-    confidenceThreshold: Double,
+    predictionsByFrame: [[Detection]],
     matchIoU: Double
-) throws -> [String: ClassMetrics] {
+) -> [String: ClassMetrics] {
     var metrics = Dictionary(
         uniqueKeysWithValues: tennisClassIndices.keys.map { ($0, ClassMetrics()) }
     )
-    for record in records {
-        let predictions = try detections(
-            model: model,
-            imageURL: datasetDirectory.appendingPathComponent(record.localImage),
-            confidenceThreshold: confidenceThreshold,
-            iouThreshold: 0.45
-        )
+    for (record, predictions) in zip(records, predictionsByFrame) {
         for label in tennisClassIndices.keys {
             let truths = record.boxes.filter { $0.label == label }
             let candidates = predictions
@@ -218,19 +277,13 @@ private func evaluate(
 
 private func evaluateBallCenters(
     records: [KeypointRecord],
-    datasetDirectory: URL,
-    model: MLModel,
-    confidenceThreshold: Double,
+    predictionsByImage: [String: [Detection]],
     maximumCenterDistance: Double
-) throws -> CenterMetrics {
+) -> CenterMetrics {
     var metrics = CenterMetrics()
     for record in records {
-        let predictions = try detections(
-            model: model,
-            imageURL: datasetDirectory.appendingPathComponent(record.localImage),
-            confidenceThreshold: confidenceThreshold,
-            iouThreshold: 0.45
-        ).filter { $0.label == "tennis_ball" }
+        let predictions = (predictionsByImage[record.localImage] ?? [])
+            .filter { $0.label == "tennis_ball" }
         guard let ball = record.points["ballCenter"],
               ball.status == "visible", let x = ball.x, let y = ball.y else {
             metrics.falsePositive += predictions.count
@@ -255,17 +308,21 @@ private func evaluateBallCenters(
 }
 
 private func usage() -> Never {
-    fputs("Usage: evaluate_coreml_racket_ball_detector.swift MODEL.mlmodelc DATASET_DIR [CONFIDENCE] [--per-frame]\n", stderr)
+    fputs("Usage: evaluate_coreml_racket_ball_detector MODEL.mlmodelc DATASET_DIR [CONFIDENCE] [--temporal] [--per-frame]\n", stderr)
     exit(2)
 }
 
-guard CommandLine.arguments.count >= 3 else { usage() }
-let modelURL = URL(fileURLWithPath: CommandLine.arguments[1])
-let datasetDirectory = URL(fileURLWithPath: CommandLine.arguments[2])
-let confidenceThreshold = CommandLine.arguments.count > 3
-    ? Double(CommandLine.arguments[3]) ?? 0.10
-    : 0.10
-let includePerFrame = CommandLine.arguments.contains("--per-frame")
+@main
+private enum DetectorEvaluator {
+static func main() {
+    guard CommandLine.arguments.count >= 3 else { usage() }
+    let modelURL = URL(fileURLWithPath: CommandLine.arguments[1])
+    let datasetDirectory = URL(fileURLWithPath: CommandLine.arguments[2])
+    let confidenceThreshold = CommandLine.arguments.count > 3
+        ? Double(CommandLine.arguments[3]) ?? 0.10
+        : 0.10
+    let includePerFrame = CommandLine.arguments.contains("--per-frame")
+    let includeTemporal = CommandLine.arguments.contains("--temporal")
 
 do {
     let configuration = MLModelConfiguration()
@@ -274,23 +331,47 @@ do {
     let datasetRecords = try records(
         at: datasetDirectory.appendingPathComponent("annotations.jsonl")
     )
-    let result = try evaluate(
+    let rawPredictions = try datasetRecords.map { record in
+        try detections(
+            model: model,
+            imageURL: datasetDirectory.appendingPathComponent(record.localImage),
+            confidenceThreshold: confidenceThreshold,
+            iouThreshold: 0.45
+        )
+    }
+    let keypointPath = datasetDirectory.appendingPathComponent("keypoints.jsonl")
+    let keypoints = FileManager.default.fileExists(atPath: keypointPath.path)
+        ? try keypointRecords(at: keypointPath) : nil
+    var processedFrames = rawPredictions
+    var linkedPairs: [String: Int] = [:]
+    if includeTemporal {
+        guard let keypoints else {
+            throw EvaluationError(description: "temporal evaluation requires keypoints.jsonl")
+        }
+        let selected = try temporallySelectedDetections(
+            records: datasetRecords,
+            rawDetections: rawPredictions,
+            keypoints: keypoints,
+            confidenceThreshold: confidenceThreshold
+        )
+        processedFrames = selected.frames
+        linkedPairs = selected.linkedPairs
+    }
+    let result = evaluate(
         records: datasetRecords,
-        datasetDirectory: datasetDirectory,
-        model: model,
-        confidenceThreshold: confidenceThreshold,
+        predictionsByFrame: processedFrames,
         matchIoU: 0.50
     )
-    let keypointPath = datasetDirectory.appendingPathComponent("keypoints.jsonl")
-    let ballCenterResult: CenterMetrics? = FileManager.default.fileExists(atPath: keypointPath.path)
-        ? try evaluateBallCenters(
-            records: keypointRecords(at: keypointPath),
-            datasetDirectory: datasetDirectory,
-            model: model,
-            confidenceThreshold: confidenceThreshold,
+    let predictionsByImage = Dictionary(uniqueKeysWithValues: zip(datasetRecords, processedFrames).map {
+        ($0.localImage, $1)
+    })
+    let ballCenterResult: CenterMetrics? = keypoints.map {
+        evaluateBallCenters(
+            records: $0,
+            predictionsByImage: predictionsByImage,
             maximumCenterDistance: 0.06
         )
-        : nil
+    }
     let ballCenterJSON: Any = ballCenterResult.map { value in
         let meanDistance = value.matchedDistances.isEmpty
             ? 0
@@ -309,7 +390,7 @@ do {
     } ?? NSNull()
     var output: [String: Any] = [
         "schemaVersion": 1,
-        "purpose": "Object-perception baseline only; not serve-technique accuracy.",
+        "purpose": "Object-perception pilot only; not serve-technique accuracy.",
         "imageCount": datasetRecords.count,
         "confidenceThreshold": confidenceThreshold,
         "matchIoUThreshold": 0.50,
@@ -332,14 +413,15 @@ do {
             "canEstablishPronationAccuracy": false
         ]
     ]
+    output["temporalAssociation"] = [
+        "enabled": includeTemporal,
+        "observationsOnly": true,
+        "maximumFrameGap": ObjectDetectionSequenceSelector.maximumFrameGap,
+        "maximumNormalizedDisplacementPerFrame": ObjectDetectionSequenceSelector.maximumNormalizedDisplacementPerFrame,
+        "linkedPairs": linkedPairs
+    ] as [String: Any]
     if includePerFrame {
-        output["frames"] = try datasetRecords.map { record in
-            let predictions = try detections(
-                model: model,
-                imageURL: datasetDirectory.appendingPathComponent(record.localImage),
-                confidenceThreshold: confidenceThreshold,
-                iouThreshold: 0.45
-            )
+        output["frames"] = zip(datasetRecords, processedFrames).map { record, predictions in
             return [
                 "imageID": record.imageID,
                 "detections": predictions.map { detection in
@@ -360,4 +442,6 @@ do {
 } catch {
     fputs("evaluation failed: \(error)\n", stderr)
     exit(1)
+}
+}
 }

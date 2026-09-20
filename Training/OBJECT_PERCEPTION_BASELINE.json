@@ -225,6 +225,23 @@
     "bundledInRelease": false,
     "decision": "Promising Debug-only pilot. Ball-center localization succeeds on the second recording from the same participant, but no new-player, side-view, subgroup, or independent-participant evidence exists. Racket recall remains far below the release gate."
   },
+  "temporalAssociationExperiment": {
+    "purpose": "Conservatively associate existing detector boxes without filling unseen frames or changing technique scores.",
+    "modelAndThreshold": "ServeAIRacketBallPoseROIContextPilot at the adaptation-selected 0.80 confidence threshold",
+    "selection": "At most one observed box per class per frame; continuity bonus in full-frame coordinates for gaps of at most two sampled frames; no interpolation.",
+    "adaptationRecording": {
+      "rawRacket": { "truePositive": 12, "falsePositive": 5, "falseNegative": 2 },
+      "associatedRacket": { "truePositive": 12, "falsePositive": 0, "falseNegative": 2 }
+    },
+    "heldRecording": {
+      "rawRacket": { "truePositive": 5, "falsePositive": 1, "falseNegative": 9 },
+      "associatedRacket": { "truePositive": 5, "falsePositive": 1, "falseNegative": 9 },
+      "associatedBallCenter": { "truePositive": 14, "falsePositive": 0, "falseNegative": 0 }
+    },
+    "releaseEligible": false,
+    "bundledInRelease": false,
+    "decision": "Debug diagnostic only. Duplicate suppression helped the adaptation recording but did not improve held-recording racket accuracy or recall. More independent serve labels and a stronger detector are required before any release promotion."
+  },
   "targetDomainReleaseGate": {
     "minimumLabeledServeFrames": 300,
     "minimumIndependentParticipants": 10,

@@ -168,6 +168,8 @@ def materialize_split(
             "localImage": f"images/{image_name}",
             "pixelWidth": output_size,
             "pixelHeight": output_size,
+            "sourcePixelWidth": width,
+            "sourcePixelHeight": height,
             "parentFrameSHA256": source_record["frameSHA256"],
             "roi": roi,
             "roiPoseSource": pose_source,
@@ -180,6 +182,7 @@ def materialize_split(
         roi_records.append({
             "sampleID": source_record["sampleID"], "imageFilename": image_name,
             "parentFrameSHA256": source_record["frameSHA256"], "crop": roi,
+            "sourcePixelWidth": width, "sourcePixelHeight": height,
             "poseSource": pose_source, "cropSHA256": sha256_file(destination),
         })
 

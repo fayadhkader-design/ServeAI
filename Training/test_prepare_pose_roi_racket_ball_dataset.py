@@ -64,6 +64,11 @@ class PoseROIRacketBallDatasetTests(unittest.TestCase):
             self.assertEqual(result["directPoseFrameCount"], 1)
             self.assertEqual(result["fallbackMedianFrameCount"], 1)
             self.assertEqual(result["visibleKeypointCoverage"], 1)
+            output_records = [json.loads(line) for line in (root / "output" / "keypoints.jsonl").read_text().splitlines()]
+            self.assertEqual([item["sourcePixelWidth"] for item in output_records], [1000, 1000])
+            self.assertEqual([item["sourcePixelHeight"] for item in output_records], [2000, 2000])
+            roi_evidence = [json.loads(line) for line in (root / "output" / "roi-evidence.jsonl").read_text().splitlines()]
+            self.assertEqual([item["sourcePixelWidth"] for item in roi_evidence], [1000, 1000])
 
 
 if __name__ == "__main__":

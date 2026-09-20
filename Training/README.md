@@ -92,6 +92,37 @@ it reaches 0.90 racket recall and 0.82 racket precision, but only 0.60 ball
 recall and 0.33 ball precision at confidence 0.10. That is useful feasibility
 evidence and insufficient for release.
 
+Compile the evaluator with the exact Debug-only sequence selector used by the
+app. `--temporal` selects at most one observed box per class per frame after
+mapping each crop box to full-frame coordinates; it never fills missed frames:
+
+```sh
+xcrun swiftc -D DEBUG -parse-as-library \
+  Training/evaluate_coreml_racket_ball_detector.swift \
+  ServeAI/Analysis/ObjectDetectionSequenceSelector.swift \
+  -framework CoreML -framework CoreVideo -framework Foundation -O \
+  -o work/bin/evaluate_coreml_racket_ball_detector
+python3 Training/prepare_pose_roi_racket_ball_dataset.py \
+  Training/data/target_domain_racket_ball_pilot \
+  --adaptation-poses work/adaptation-poses.jsonl \
+  --evaluation-poses work/evaluation-poses.jsonl \
+  --output work/temporal-pilot-dataset
+work/bin/evaluate_coreml_racket_ball_detector \
+  work/compiled-pose-roi-context-pilot/ServeAIRacketBallPoseROIContextPilot.mlmodelc \
+  work/temporal-pilot-dataset/evaluation 0.8 --temporal
+```
+
+Temporal evaluation requires a regenerated ROI dataset with source-frame
+dimensions in `keypoints.jsonl`; older local derived datasets lack that field.
+The adaptation recording selected the fixed 0.8 detector threshold and
+sequence rule. On adaptation, racket false positives fell from 5 to 0 with
+12 true positives and 2 false negatives unchanged. On the held-out second
+recording, racket results did not improve: 5 true positives, 1 false positive,
+and 9 false negatives both before and after association. Ball-center results
+remained 14/14 with no false positives on that recording. This is one rear-view
+participant, not an accuracy claim for new players; the Debug-only continuity
+metric is an association diagnostic, not a measured racket path.
+
 `audit_coreml_racket_ball_video.swift` measures unlabeled temporal detection
 coverage on a private local clip without exporting the clip or claiming that a
 detection is correct. It is intended to expose domain shift before annotation.
