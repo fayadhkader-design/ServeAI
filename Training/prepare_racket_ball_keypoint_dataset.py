@@ -81,7 +81,7 @@ def validate_point(point: object, context: str) -> dict:
     return {"status": status}
 
 
-def load_and_validate(labels_path: Path, review_directory: Path) -> tuple[dict, list[dict], list[dict]]:
+def load_and_validate(labels_path: Path, review_directory: Path) -> tuple[dict, dict, list[dict], list[dict]]:
     labels = json.loads(labels_path.read_text())
     manifest = json.loads((review_directory / "manifest.json").read_text())
     if labels.get("schemaVersion") != 1:
@@ -90,6 +90,13 @@ def load_and_validate(labels_path: Path, review_directory: Path) -> tuple[dict, 
         raise PreparationError("unexpected label-export purpose")
     if labels.get("releaseEligible") is not False:
         raise PreparationError("pilot labels must remain releaseEligible false")
+    if manifest.get("sourceMode") == "contact-window-intake":
+        if not manifest.get("reviewID") or labels.get("reviewID") != manifest["reviewID"]:
+            raise PreparationError("contact-window labels do not match the review ID")
+        for field in ("sourceMode", "participantPseudonym", "cameraAngle", "dominantHand", "skillLevel",
+                      "participantConsentReference", "mediaRightsBasis", "mediaRightsReference"):
+            if not manifest.get(field) or labels.get(field) != manifest[field]:
+                raise PreparationError(f"contact-window labels do not match {field}")
     frames = labels.get("frames")
     if not isinstance(frames, list) or not frames:
         raise PreparationError("export contains no frames")
@@ -146,7 +153,7 @@ def load_and_validate(labels_path: Path, review_directory: Path) -> tuple[dict, 
         })
     if seen_ids != set(expected):
         raise PreparationError("export is missing one or more expected sample IDs")
-    return labels, canonical, corrections
+    return labels, manifest, canonical, corrections
 
 
 def racket_box(points: dict) -> dict | None:
@@ -198,16 +205,17 @@ def createml_record(image_name: str, boxes: list[dict], width: int, height: int)
 def materialize(labels_path: Path, review_directory: Path, output: Path) -> dict:
     if output.exists() and any(output.iterdir()):
         raise PreparationError(f"refusing to overwrite non-empty output: {output}")
-    labels, frames, corrections = load_and_validate(labels_path, review_directory)
+    labels, manifest, frames, corrections = load_and_validate(labels_path, review_directory)
     output.mkdir(parents=True, exist_ok=True)
-    source_names = sorted({frame["sourceFilename"] for frame in frames})
-    if len(source_names) < 2:
-        raise PreparationError("pilot needs two separately recorded source clips")
-    split_for_source = {source_names[0]: "adaptation", source_names[1]: "evaluation"}
+    source_names = list(dict.fromkeys(sample["sourceFilename"] for sample in manifest["samples"]))
+    split_for_source = ({source_names[0]: "unassigned"} if len(source_names) == 1 else {
+        name: "adaptation" if index == 0 else "evaluation"
+        for index, name in enumerate(source_names)
+    })
     counts = Counter()
     visibility = Counter()
 
-    for split in ("adaptation", "evaluation"):
+    for split in sorted(set(split_for_source.values())):
         split_dir = output / split
         (split_dir / "images").mkdir(parents=True)
         keypoint_records, detector_records, createml_records = [], [], []
@@ -239,6 +247,10 @@ def materialize(labels_path: Path, review_directory: Path, output: Path) -> dict
         "createdFromSHA256": sha256_file(labels_path),
         "sourceReviewManifestSHA256": sha256_file(review_directory / "manifest.json"),
         "participantPseudonym": labels.get("participantPseudonym"), "cameraAngle": labels.get("cameraAngle"),
+        "sourceMode": manifest.get("sourceMode", "calibration-review"),
+        "rightsAndConsentStatus": ("self-declared references only; not production authorization"
+                                   if manifest.get("sourceMode") == "contact-window-intake" else
+                                   "legacy calibration review; consult source consent record"),
         "sourceSplit": split_for_source, "frameCounts": dict(counts),
         "visibilityCounts": dict(sorted(visibility.items())), "semanticCorrections": corrections,
         "detectorBoxDerivations": {
@@ -247,9 +259,11 @@ def materialize(labels_path: Path, review_directory: Path, output: Path) -> dict
         },
         "releaseEligible": False,
         "limitations": [
-            "Only one participant and one rear camera setup are represented.",
+            f"Only one participant and one {labels.get('cameraAngle', 'unspecified')} camera setup are represented.",
             "Adjacent video frames are correlated and are not independent examples.",
-            "The adaptation/evaluation split separates recordings, not participants.",
+            ("One recording is unassigned and cannot support a train/evaluation split."
+             if len(source_names) == 1 else
+             "The adaptation/evaluation split separates recordings, not participants."),
             "Ball box diameter is estimated because only the center was labeled.",
             "These labels can audit object localization but cannot establish forearm pronation accuracy.",
         ],

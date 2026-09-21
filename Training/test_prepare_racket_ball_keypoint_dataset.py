@@ -9,11 +9,11 @@ import prepare_racket_ball_keypoint_dataset as dataset
 
 
 class RacketBallKeypointDatasetTests(unittest.TestCase):
-    def fixture(self, root: Path):
+    def fixture(self, root: Path, source_names=("a.mov", "b.mov"), contact_intake=False):
         review = root / "review"
         (review / "frames").mkdir(parents=True)
         frames, samples = [], []
-        for source_index, source in enumerate(("a.mov", "b.mov"), 1):
+        for source_index, source in enumerate(source_names, 1):
             frame_path = review / "frames" / f"source-{source_index}.jpg"
             frame_path.write_bytes(f"image-{source_index}".encode())
             digest = hashlib.sha256(frame_path.read_bytes()).hexdigest()
@@ -31,9 +31,24 @@ class RacketBallKeypointDatasetTests(unittest.TestCase):
                     "ballCenter": {"status": "visible", "x": .7, "y": .2},
                 },
             })
-        (review / "manifest.json").write_text(json.dumps({"samples": samples}))
+        manifest = {"samples": samples}
+        if contact_intake:
+            manifest.update({
+                "sourceMode": "contact-window-intake", "reviewID": "review-test-001",
+                "participantPseudonym": "participant-test", "cameraAngle": "side",
+                "dominantHand": "right", "skillLevel": "intermediate",
+                "participantConsentReference": "consent-test-001", "mediaRightsBasis": "self-recorded",
+                "mediaRightsReference": "rights-test-001",
+            })
+        (review / "manifest.json").write_text(json.dumps(manifest))
         labels = root / "labels.json"
-        labels.write_text(json.dumps({"schemaVersion": 1, "purpose": "human-reviewed-racket-ball-keypoint-pilot", "releaseEligible": False, "participantPseudonym": "participant-test", "cameraAngle": "rear", "frames": frames}))
+        payload = {"schemaVersion": 1, "purpose": "human-reviewed-racket-ball-keypoint-pilot", "releaseEligible": False, "participantPseudonym": "participant-test", "cameraAngle": "side" if contact_intake else "rear", "frames": frames}
+        if contact_intake:
+            payload.update({key: manifest[key] for key in (
+                "sourceMode", "reviewID", "dominantHand", "skillLevel",
+                "participantConsentReference", "mediaRightsBasis", "mediaRightsReference"
+            )})
+        labels.write_text(json.dumps(payload))
         return labels, review
 
     def test_materializes_recording_separated_pilot_and_audits_swaps(self):
@@ -76,6 +91,45 @@ class RacketBallKeypointDatasetTests(unittest.TestCase):
             payload["frames"][0]["points"]["ballCenter"] = {"status": "notVisible", "x": .5, "y": None}
             labels.write_text(json.dumps(payload))
             with self.assertRaisesRegex(dataset.PreparationError, "must not carry"):
+                dataset.load_and_validate(labels, review)
+
+    def test_one_clip_intake_stays_unassigned_and_non_release(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            labels, review = self.fixture(root, source_names=("one.mov",), contact_intake=True)
+            with mock.patch.object(dataset, "image_dimensions", return_value=(1000, 2000)):
+                result = dataset.materialize(labels, review, root / "output")
+            self.assertEqual(result["frameCounts"], {"unassigned": 1})
+            self.assertEqual(result["sourceSplit"], {"one.mov": "unassigned"})
+            self.assertEqual(result["sourceMode"], "contact-window-intake")
+            self.assertFalse(result["releaseEligible"])
+            self.assertTrue((root / "output/unassigned/keypoints.jsonl").is_file())
+            self.assertFalse((root / "output/adaptation").exists())
+            self.assertIn("side camera", result["limitations"][0])
+
+    def test_contact_intake_rejects_wrong_review_id(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            labels, review = self.fixture(root, source_names=("one.mov",), contact_intake=True)
+            payload = json.loads(labels.read_text())
+            payload["reviewID"] = "another-review"
+            labels.write_text(json.dumps(payload))
+            with self.assertRaisesRegex(dataset.PreparationError, "review ID"):
+                dataset.load_and_validate(labels, review)
+
+    def test_contact_intake_rejects_mismatched_rights_and_camera(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            labels, review = self.fixture(root, source_names=("one.mov",), contact_intake=True)
+            payload = json.loads(labels.read_text())
+            payload["mediaRightsReference"] = "different"
+            labels.write_text(json.dumps(payload))
+            with self.assertRaisesRegex(dataset.PreparationError, "mediaRightsReference"):
+                dataset.load_and_validate(labels, review)
+            payload["mediaRightsReference"] = "rights-test-001"
+            payload["cameraAngle"] = "rear"
+            labels.write_text(json.dumps(payload))
+            with self.assertRaisesRegex(dataset.PreparationError, "cameraAngle"):
                 dataset.load_and_validate(labels, review)
 
 

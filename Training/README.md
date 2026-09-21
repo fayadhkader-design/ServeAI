@@ -157,6 +157,37 @@ SHA-256 values. Browser drafts and generated frames remain local. The export is
 a one-participant workflow pilot, not release ground truth, and its 2D racket
 shape cannot by itself establish three-dimensional forearm pronation.
 
+For a new participant's permissioned side- or rear-view serve, the shorter
+contact-window intake does not require a prior calibration review. Copy
+`racket_ball_contact_intake.example.json` to a private, gitignored location,
+replace every example value, and add one source entry per serve. Use an
+anonymous participant code; do not put a name, email, consent document, or
+video in Git. `participantConsentReference` and `mediaRightsReference` are
+local pointers to evidence you retain privately, not proof supplied by this
+tool. Never use a downloaded broadcast or social-media clip unless its
+underlying reuse and ML-training rights are documented separately.
+
+Find the approximate ball-racket contact time in seconds, and calculate each
+unchanged video's digest with `shasum -a 256 /path/to/serve-01.mov`. The
+example's all-zero digest is a placeholder and will not pass verification.
+Then run, using a new output directory for every review:
+
+```sh
+python3 Training/build_racket_ball_annotation_review.py \
+  --capture-manifest Training/data/participant-002-intake.json \
+  --video-directory /path/to/private-videos \
+  --output outputs/racket-ball-participant-002
+```
+
+Open the generated `index.html`, review all six racket/ball points on every
+frame, and download the JSON export. The 15 frames per recording span 0.42
+seconds before through 0.42 seconds after the approximate contact time; they
+are *not* verified phase or impact labels. The browser draft is isolated by
+review ID, so labeling a later recording cannot overwrite an earlier draft
+for the same participant code. Keep each export beside its own review
+directory; source-video and extracted-frame digests are checked again before
+dataset preparation.
+
 After downloading the completed export, validate its source/frame digests and
 materialize a recording-separated target-domain pilot:
 
@@ -173,6 +204,14 @@ keypoint JSONL plus Create ML detector annotations. The first recording is an
 adaptation split and the second is an evaluation split. Because both recordings
 show the same participant, this can diagnose target-domain behavior but cannot
 measure generalization to new players or satisfy the release gate.
+
+The same preparation command works with a contact-window export by pointing
+`--review-directory` at its generated directory. If it contains only one
+recording, the frames go to `unassigned/` rather than a misleading training or
+evaluation split. New-participant performance requires separately consented
+players, untouched held-out recordings, and a preregistered evaluation before
+any Release promotion. All contact-window outputs remain local, self-declared
+for rights/consent, and `releaseEligible: false`.
 
 The full-frame detector loses the tiny ball and racket when a portrait frame is
 resized to its 416-pixel input. Build the frozen pose-centered ROI experiment
