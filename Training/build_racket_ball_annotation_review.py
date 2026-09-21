@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -22,6 +24,8 @@ PHASE_SAMPLES = {
     "contactPosition": (-0.08, -0.04, 0.0, 0.04, 0.08),
     "pronation": (0.0, 0.06, 0.12),
 }
+CONTACT_WINDOW_OFFSETS = tuple(round((index - 7) * 0.06, 2) for index in range(15))
+CONTACT_INTAKE_PURPOSE = "serveai-racket-ball-contact-window-intake"
 
 KEYPOINTS = (
     ("handleButt", "Bottom of the grip", "#46d5ff", "Click the cap below the player's hand, farthest from the racket oval."),
@@ -47,9 +51,13 @@ def sha256_file(path: Path) -> str:
 
 def planned_samples(review: dict) -> list[dict]:
     samples: list[dict] = []
+    is_contact_intake = review.get("purpose") == CONTACT_INTAKE_PURPOSE
     for source_index, source in enumerate(review.get("sources", [])):
-        anchors = source.get("phaseAnchors", {})
-        for phase, offsets in PHASE_SAMPLES.items():
+        anchors = ({"contactWindow": float(source["contactSeconds"])} if is_contact_intake
+                   else source.get("phaseAnchors", {}))
+        sample_plan = ({"contactWindow": CONTACT_WINDOW_OFFSETS} if is_contact_intake
+                       else PHASE_SAMPLES)
+        for phase, offsets in sample_plan.items():
             if phase not in anchors:
                 raise BuildError(f"{source.get('filename', 'source')} is missing {phase}")
             anchor = float(anchors[phase])
@@ -68,17 +76,72 @@ def planned_samples(review: dict) -> list[dict]:
     return samples
 
 
+def validate_contact_intake(review: dict) -> None:
+    if review.get("schemaVersion") != 1:
+        raise BuildError("contact-window intake requires schemaVersion 1")
+    participant = review.get("participantPseudonym")
+    if not isinstance(participant, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{2,63}", participant):
+        raise BuildError("participantPseudonym must be a short anonymous code")
+    if review.get("cameraAngle") not in {"side", "rear"}:
+        raise BuildError("cameraAngle must be side or rear")
+    if review.get("dominantHand") not in {"left", "right"}:
+        raise BuildError("dominantHand must be left or right")
+    if review.get("skillLevel") not in {"beginner", "intermediate", "advanced", "competitive"}:
+        raise BuildError("skillLevel is missing or invalid")
+    if review.get("mediaRightsBasis") not in {"self-recorded", "permission-documented"}:
+        raise BuildError("mediaRightsBasis must be self-recorded or permission-documented")
+    for field in ("participantConsentReference", "mediaRightsReference"):
+        value = review.get(field)
+        if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{2,79}", value):
+            raise BuildError(f"{field} must be an anonymous local evidence reference")
+    sources = review.get("sources")
+    if not isinstance(sources, list) or not sources:
+        raise BuildError("contact-window intake needs at least one serve video")
+    seen_names: set[str] = set()
+    seen_hashes: set[str] = set()
+    for source in sources:
+        if not isinstance(source, dict):
+            raise BuildError("each source must be an object")
+        filename, digest = source.get("filename"), source.get("sourceVideoSHA256")
+        if not isinstance(filename, str) or not filename or Path(filename).name != filename or "\\" in filename:
+            raise BuildError("source filename must be a plain filename, not a path")
+        if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", digest):
+            raise BuildError(f"{filename} needs a SHA-256 video digest")
+        if filename in seen_names or digest.lower() in seen_hashes:
+            raise BuildError("duplicate source filename or video digest")
+        seen_names.add(filename)
+        seen_hashes.add(digest.lower())
+        contact = source.get("contactSeconds")
+        if isinstance(contact, bool) or not isinstance(contact, (int, float)) or not math.isfinite(contact):
+            raise BuildError(f"{filename} needs a finite contactSeconds value")
+        if contact < -CONTACT_WINDOW_OFFSETS[0]:
+            raise BuildError(f"{filename} contactSeconds is too close to the start")
+
+
 def verify_sources(review: dict, video_directory: Path) -> dict[str, Path]:
     resolved: dict[str, Path] = {}
     for source in review.get("sources", []):
         filename = source["filename"]
+        if not isinstance(filename, str) or Path(filename).name != filename or "\\" in filename:
+            raise BuildError("source filename must be a plain filename, not a path")
         path = (video_directory / filename).resolve()
         if not path.is_file():
             raise BuildError(f"source video not found: {path}")
-        if sha256_file(path) != source["sourceVideoSHA256"]:
+        if sha256_file(path) != source["sourceVideoSHA256"].lower():
             raise BuildError(f"source hash mismatch for {filename}")
         resolved[filename] = path
     return resolved
+
+
+def video_duration(path: Path) -> float:
+    completed = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
+        check=True, capture_output=True, text=True,
+    )
+    duration = float(completed.stdout.strip())
+    if not math.isfinite(duration) or duration <= 0:
+        raise BuildError(f"could not measure video duration: {path.name}")
+    return duration
 
 
 def extract_frame(video: Path, timestamp: float, output: Path) -> None:
@@ -96,7 +159,19 @@ def extract_frame(video: Path, timestamp: float, output: Path) -> None:
 def materialize(review: dict, video_directory: Path, output: Path) -> dict:
     if not shutil.which("ffmpeg"):
         raise BuildError("ffmpeg is required to extract review frames")
+    if output.exists() and any(output.iterdir()):
+        raise BuildError(f"refusing to overwrite non-empty review: {output}")
+    is_contact_intake = review.get("purpose") == CONTACT_INTAKE_PURPOSE
+    if is_contact_intake:
+        validate_contact_intake(review)
+        if not shutil.which("ffprobe"):
+            raise BuildError("ffprobe is required to check contact-window bounds")
     sources = verify_sources(review, video_directory)
+    if is_contact_intake:
+        for source in review["sources"]:
+            duration = video_duration(sources[source["filename"]])
+            if source["contactSeconds"] + CONTACT_WINDOW_OFFSETS[-1] >= duration:
+                raise BuildError(f"{source['filename']} contactSeconds is too close to the end")
     frames_directory = output / "frames"
     frames_directory.mkdir(parents=True, exist_ok=True)
     samples = planned_samples(review)
@@ -111,6 +186,12 @@ def materialize(review: dict, video_directory: Path, output: Path) -> dict:
         "purpose": "local-racket-ball-keypoint-labeling-pilot",
         "releaseEligible": False,
         "participantPseudonym": review.get("participantPseudonym"),
+        "reviewID": hashlib.sha256(json.dumps({
+            "participantPseudonym": review.get("participantPseudonym"),
+            "sources": [(source["sourceVideoSHA256"], source.get("contactSeconds", source.get("phaseAnchors")))
+                        for source in review.get("sources", [])],
+        }, sort_keys=True).encode()).hexdigest(),
+        "sourceMode": "contact-window-intake" if is_contact_intake else "calibration-review",
         "cameraAngle": review.get("cameraAngle"),
         "dominantHand": review.get("dominantHand"),
         "skillLevel": review.get("skillLevel"),
@@ -123,9 +204,16 @@ def materialize(review: dict, video_directory: Path, output: Path) -> dict:
         "limitations": [
             "These labels come from one participant and cannot establish new-player accuracy.",
             "Two-dimensional racket keypoints do not directly measure three-dimensional forearm pronation.",
-            "Phase hints come from the participant's earlier manual review and are not independent ground truth.",
+            ("Contact-centered sampling does not establish true phase boundaries or ball-racket impact."
+             if is_contact_intake else
+             "Phase hints come from the participant's earlier manual review and are not independent ground truth."),
+            "Local consent and media-rights references are self-declared; they do not satisfy production authorization.",
         ],
     }
+    if is_contact_intake:
+        manifest["participantConsentReference"] = review["participantConsentReference"]
+        manifest["mediaRightsBasis"] = review["mediaRightsBasis"]
+        manifest["mediaRightsReference"] = review["mediaRightsReference"]
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
 
@@ -149,12 +237,12 @@ LABEL_PAGE = r'''<!doctype html>
 @media(max-width:1050px){.workspace{grid-template-columns:240px minmax(0,1fr)}.inspector{grid-column:1/-1;border-left:0;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr;gap:18px}.keypoints{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:720px){.topbar{position:static;grid-template-columns:1fr;padding:14px}.workspace{display:block}.rail{border-right:0;border-bottom:1px solid var(--line);max-height:260px}.stage{min-height:560px}.inspector{display:block}.keypoints{grid-template-columns:1fr}.footer{position:sticky;bottom:0;flex-wrap:wrap}.footer .message{flex-basis:100%}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition-duration:.01ms!important}}
 </style></head><body><a class="skip" href="#annotation-stage">Skip to annotation stage</a><main class="app">
 <header class="topbar"><div><h1>Racket + ball label lab</h1><p class="subtitle">Click only what is visible. Every decision remains local until you download it.</p></div><div class="progress-line" aria-label="Review progress"><strong id="progressText">0 / 0 frames</strong><div class="track" aria-hidden="true"><i id="progressFill"></i></div></div></header>
-<section class="workspace"><aside class="rail" aria-label="Frames"><h2>Critical motion frames</h2><p class="rail-note">Racket drop through post-contact. Completed frames have a lime marker.</p><div class="frame-list" id="frameList"></div></aside>
+<section class="workspace"><aside class="rail" aria-label="Frames"><h2>Serve motion frames</h2><p class="rail-note">Frames near the arm action. Completed frames have a lime marker.</p><div class="frame-list" id="frameList"></div></aside>
 <section class="stage" id="annotation-stage"><div class="stagebar"><div class="stage-title"><strong id="frameTitle">Loading frame</strong><span id="frameEvidence"></span></div><div class="zoom"><button id="zoomOut" aria-label="Zoom out">−</button><output id="zoomValue">100%</output><button id="zoomIn" aria-label="Zoom in">+</button><button id="fit">Fit</button></div></div><div class="canvas-wrap" id="canvasWrap" tabindex="0" aria-label="Annotation image. Select a keypoint and click its position."><canvas id="canvas"></canvas></div></section>
-<aside class="inspector" aria-label="Annotation tools"><div><h2>Mark the racket and ball</h2><p class="first-step"><strong>Start with point 1.</strong> Select a point below, then click that exact spot in the photo.</p><p class="helper">The oval means the large round head of the racket. “Left” and “right” mean as you see them on your screen—not the player's left and right.</p><div class="keypoints" id="keypoints"></div><div class="point-actions"><button id="notVisible">Can't see this point <kbd>N</kbd></button><button id="clearPoint">Remove my mark</button></div></div><div><div class="summary"><div class="summary-row"><span>Point selected</span><strong id="selectedTool">—</strong></div><div class="summary-row"><span>Points marked</span><strong id="visibleCount">0 / 6</strong></div><div class="summary-row"><span>This photo</span><strong id="frameStatus">Not finished</strong></div></div><div class="warning"><strong>Research pilot.</strong> These two clips test the workflow. They cannot prove accuracy across players, and 2D points cannot directly measure 3D pronation.</div></div></aside></section>
+<aside class="inspector" aria-label="Annotation tools"><div><h2>Mark the racket and ball</h2><p class="first-step"><strong>Start with point 1.</strong> Select a point below, then click that exact spot in the photo.</p><p class="helper">The oval means the large round head of the racket. “Left” and “right” mean as you see them on your screen—not the player's left and right.</p><div class="keypoints" id="keypoints"></div><div class="point-actions"><button id="notVisible">Can't see this point <kbd>N</kbd></button><button id="clearPoint">Remove my mark</button></div></div><div><div class="summary"><div class="summary-row"><span>Point selected</span><strong id="selectedTool">—</strong></div><div class="summary-row"><span>Points marked</span><strong id="visibleCount">0 / 6</strong></div><div class="summary-row"><span>This photo</span><strong id="frameStatus">Not finished</strong></div></div><div class="warning"><strong>Local research pilot.</strong> These labels alone cannot prove accuracy on new players. Contact timing is approximate, and 2D points cannot measure 3D pronation.</div></div></aside></section>
 <footer class="footer"><div class="message" id="message" role="status">Your work saves automatically in this browser.</div><button class="secondary" id="previous">Previous photo</button><button class="primary" id="finish">Save photo &amp; continue</button><button class="secondary" id="next">Next photo</button><button class="secondary" id="download">Download finished labels</button></footer></main><div class="dialog" id="toast" role="status" aria-live="polite"></div>
 <script id="seed" type="application/json">__SERVEAI_SEED__</script><script>
-const manifest=JSON.parse(document.getElementById('seed').textContent),storageKey='serveai-racket-ball-labels-'+manifest.participantPseudonym+'-v1',$=id=>document.getElementById(id);let index=0,tool=manifest.keypoints[0].id,zoom=1,image=new Image(),baseWidth=0;let state={frames:Object.fromEntries(manifest.samples.map(s=>[s.id,{reviewed:false,points:Object.fromEntries(manifest.keypoints.map(k=>[k.id,{status:'unreviewed',x:null,y:null}]))}]))};try{const saved=JSON.parse(localStorage.getItem(storageKey));if(saved&&saved.frames)state=saved}catch{}
+const manifest=JSON.parse(document.getElementById('seed').textContent),storageKey='serveai-racket-ball-labels-'+(manifest.reviewID||manifest.participantPseudonym)+'-v1',$=id=>document.getElementById(id);let index=0,tool=manifest.keypoints[0].id,zoom=1,image=new Image(),baseWidth=0;let state={frames:Object.fromEntries(manifest.samples.map(s=>[s.id,{reviewed:false,points:Object.fromEntries(manifest.keypoints.map(k=>[k.id,{status:'unreviewed',x:null,y:null}]))}]))};try{const saved=JSON.parse(localStorage.getItem(storageKey));if(saved?.frames&&Object.keys(saved.frames).length===manifest.samples.length&&manifest.samples.every(s=>saved.frames[s.id]))state=saved}catch{}
 const sample=()=>manifest.samples[index],frame=()=>state.frames[sample().id],esc=value=>String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])),phase=value=>value.replace(/([A-Z])/g,' $1').replace(/^./,x=>x.toUpperCase()),persist=()=>localStorage.setItem(storageKey,JSON.stringify(state));
 function renderList(){$('frameList').innerHTML=manifest.samples.map((s,i)=>`<button class="frame-item" data-index="${i}" aria-current="${i===index}"><img class="thumb" src="${esc(s.framePath)}" alt=""><span class="frame-meta"><strong>${esc(phase(s.phaseHint))}</strong><span>${esc(s.sourceFilename)} · ${s.timestampSeconds.toFixed(3)}s</span></span><i class="state ${state.frames[s.id].reviewed?'done':''}" aria-label="${state.frames[s.id].reviewed?'Reviewed':'Not reviewed'}"></i></button>`).join('');document.querySelectorAll('[data-index]').forEach(b=>b.onclick=()=>loadFrame(+b.dataset.index))}
 function renderTools(){$('keypoints').innerHTML=manifest.keypoints.map((p,i)=>{const v=frame().points[p.id],text=v.status==='visible'?'Point placed':v.status==='notVisible'?"Marked: can't see it":'Still needed';return `<button class="tool" data-tool="${p.id}" aria-pressed="${tool===p.id}" style="--swatch:${p.color}"><i class="swatch" aria-hidden="true"></i><span class="tool-copy"><strong>${esc(p.label)}</strong><small>${esc(p.instruction)}</small><span class="tool-state">${text}</span></span><kbd>${i+1}</kbd></button>`}).join('');document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>selectTool(b.dataset.tool));updateSummary()}
@@ -167,17 +255,16 @@ $('canvas').onclick=e=>{const rect=e.currentTarget.getBoundingClientRect(),v=fra
 function notVisible(){const v=frame().points[tool];Object.assign(v,{status:'notVisible',x:null,y:null});frame().reviewed=false;persist();draw();renderTools();renderList()}function clearPoint(){const v=frame().points[tool];Object.assign(v,{status:'unreviewed',x:null,y:null});frame().reviewed=false;persist();draw();renderTools();renderList()}
 function finishFrame(){Object.values(frame().points).forEach(v=>{if(v.status==='unreviewed')v.status='notVisible'});frame().reviewed=true;persist();renderTools();renderList();updateProgress();show("Photo saved. Any point you didn't mark was recorded as not clearly visible.");if(index<manifest.samples.length-1)loadFrame(index+1)}
 function updateSummary(){const values=Object.values(frame().points),visible=values.filter(x=>x.status==='visible').length,definition=manifest.keypoints.find(x=>x.id===tool);$('selectedTool').textContent=definition?.label||'—';$('visibleCount').textContent=`${visible} / ${values.length}`;$('frameStatus').textContent=frame().reviewed?'Finished':'Not finished'}function updateProgress(){const reviewed=Object.values(state.frames).filter(x=>x.reviewed).length,total=manifest.samples.length;$('progressText').textContent=`${reviewed} / ${total} photos`;$('progressFill').style.width=(100*reviewed/total)+'%'}
-function show(text){$('message').textContent=text;const toast=$('toast');toast.textContent=text;toast.classList.add('show');clearTimeout(show.timer);show.timer=setTimeout(()=>toast.classList.remove('show'),3500)}function exportPayload(){return{schemaVersion:1,purpose:'human-reviewed-racket-ball-keypoint-pilot',createdAt:new Date().toISOString(),releaseEligible:false,participantPseudonym:manifest.participantPseudonym,cameraAngle:manifest.cameraAngle,dominantHand:manifest.dominantHand,skillLevel:manifest.skillLevel,keypointCoordinateSystem:'normalized-top-left-origin',limitations:manifest.limitations,frames:manifest.samples.map(s=>({sampleID:s.id,sourceFilename:s.sourceFilename,sourceVideoSHA256:s.sourceVideoSHA256,frameSHA256:s.frameSHA256,timestampSeconds:s.timestampSeconds,phaseHint:s.phaseHint,reviewed:state.frames[s.id].reviewed,points:state.frames[s.id].points}))}}
-$('download').onclick=()=>{const incomplete=Object.values(state.frames).filter(x=>!x.reviewed).length;if(incomplete){show(`Review ${incomplete} remaining frame${incomplete===1?'':'s'} before downloading.`);return}const blob=new Blob([JSON.stringify(exportPayload(),null,2)+'\n'],{type:'application/json'}),link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`serveai-${manifest.participantPseudonym}-racket-ball-labels.json`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);show('Labeled JSON downloaded. Keep the source videos with it.')};
+function show(text){$('message').textContent=text;const toast=$('toast');toast.textContent=text;toast.classList.add('show');clearTimeout(show.timer);show.timer=setTimeout(()=>toast.classList.remove('show'),3500)}function exportPayload(){return{schemaVersion:1,purpose:'human-reviewed-racket-ball-keypoint-pilot',createdAt:new Date().toISOString(),releaseEligible:false,participantPseudonym:manifest.participantPseudonym,reviewID:manifest.reviewID,sourceMode:manifest.sourceMode,participantConsentReference:manifest.participantConsentReference,mediaRightsBasis:manifest.mediaRightsBasis,mediaRightsReference:manifest.mediaRightsReference,cameraAngle:manifest.cameraAngle,dominantHand:manifest.dominantHand,skillLevel:manifest.skillLevel,keypointCoordinateSystem:'normalized-top-left-origin',limitations:manifest.limitations,frames:manifest.samples.map(s=>({sampleID:s.id,sourceFilename:s.sourceFilename,sourceVideoSHA256:s.sourceVideoSHA256,frameSHA256:s.frameSHA256,timestampSeconds:s.timestampSeconds,phaseHint:s.phaseHint,reviewed:state.frames[s.id].reviewed,points:state.frames[s.id].points}))}}
+$('download').onclick=()=>{const incomplete=Object.values(state.frames).filter(x=>!x.reviewed).length;if(incomplete){show(`Review ${incomplete} remaining frame${incomplete===1?'':'s'} before downloading.`);return}const blob=new Blob([JSON.stringify(exportPayload(),null,2)+'\n'],{type:'application/json'}),link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`serveai-${manifest.participantPseudonym}-${manifest.reviewID.slice(0,10)}-racket-ball-labels.json`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),0);show('Labeled JSON downloaded. Keep the source videos with it.')};
 $('notVisible').onclick=notVisible;$('clearPoint').onclick=clearPoint;$('finish').onclick=finishFrame;$('previous').onclick=()=>loadFrame(index-1);$('next').onclick=()=>loadFrame(index+1);$('zoomIn').onclick=()=>{zoom=Math.min(4,zoom+.25);sizeCanvas()};$('zoomOut').onclick=()=>{zoom=Math.max(.5,zoom-.25);sizeCanvas()};$('fit').onclick=fitCanvas;document.addEventListener('keydown',e=>{if(e.target.matches('select,input,textarea'))return;const n=Number(e.key);if(n>=1&&n<=manifest.keypoints.length){selectTool(manifest.keypoints[n-1].id);e.preventDefault()}else if(e.key.toLowerCase()==='n'){notVisible();e.preventDefault()}else if(e.key==='ArrowLeft'){loadFrame(index-1);e.preventDefault()}else if(e.key==='ArrowRight'){loadFrame(index+1);e.preventDefault()}else if(e.key==='Enter'){finishFrame();e.preventDefault()}});window.addEventListener('resize',()=>{if(image.complete&&image.naturalWidth)fitCanvas()});loadFrame(0);
 </script></body></html>'''
 
 
 def build(review_path: Path, video_directory: Path, output: Path) -> Path:
     review = json.loads(review_path.read_text())
-    if review.get("purpose") != "human-reviewed-local-calibration":
+    if review.get("purpose") not in {"human-reviewed-local-calibration", CONTACT_INTAKE_PURPOSE}:
         raise BuildError("review JSON has the wrong purpose")
-    output.mkdir(parents=True, exist_ok=True)
     manifest = materialize(review, video_directory, output)
     page = output / "index.html"
     page.write_text(build_html(manifest))
@@ -186,13 +273,15 @@ def build(review_path: Path, video_directory: Path, output: Path) -> Path:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--review", type=Path, default=DEFAULT_REVIEW)
+    source = parser.add_mutually_exclusive_group()
+    source.add_argument("--review", type=Path)
+    source.add_argument("--capture-manifest", type=Path)
     parser.add_argument("--video-directory", type=Path, default=DEFAULT_VIDEO_DIRECTORY)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args()
     try:
-        page = build(args.review, args.video_directory, args.output)
-    except (BuildError, OSError, json.JSONDecodeError) as error:
+        page = build(args.capture_manifest or args.review or DEFAULT_REVIEW, args.video_directory, args.output)
+    except (BuildError, OSError, ValueError, subprocess.SubprocessError, json.JSONDecodeError) as error:
         parser.error(str(error))
     print(f"wrote racket and ball review to {page}")
     return 0

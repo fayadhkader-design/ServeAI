@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "purpose": "serveai-racket-ball-contact-window-intake",
+  "participantPseudonym": "participant-002",
+  "cameraAngle": "side",
+  "dominantHand": "right",
+  "skillLevel": "intermediate",
+  "participantConsentReference": "consent-002-local",
+  "mediaRightsBasis": "self-recorded",
+  "mediaRightsReference": "rights-002-local",
+  "sources": [
+    {
+      "filename": "serve-01.mov",
+      "sourceVideoSHA256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "contactSeconds": 3.0
+    }
+  ]
+}
