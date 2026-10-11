@@ -190,7 +190,7 @@ struct FrameReviewView: View {
     private var navigationControls: some View {
         HStack(spacing: 9) {
             Button { select(max(0, selectedIndex - 1)) } label: {
-                Label("PREV", systemImage: "arrow.left")
+                Label("Previous", systemImage: "arrow.left")
             }
             .buttonStyle(ServeAISecondaryButtonStyle())
             .disabled(selectedIndex == 0)
