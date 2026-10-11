@@ -4,13 +4,12 @@ struct ServeAILogo: View {
     var compact = false
 
     var body: some View {
-        HStack(spacing: compact ? 8 : 10) {
-            Circle()
-                .fill(ServeAITheme.brand)
-                .frame(width: compact ? 8 : 10, height: compact ? 8 : 10)
-            Text("SERVE AI")
-                .font(ServeAITheme.display(.headline, size: compact ? 13 : 15))
-                .tracking(compact ? 1.6 : 2.6)
+        HStack(spacing: compact ? 7 : 9) {
+            Image(systemName: "tennisball.fill")
+                .font(.system(size: compact ? 11 : 13, weight: .medium))
+                .foregroundStyle(ServeAITheme.brand)
+            Text("ServeAI")
+                .font(ServeAITheme.body(.headline, size: compact ? 14 : 16, weight: .semibold))
                 .foregroundStyle(ServeAITheme.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
@@ -27,7 +26,7 @@ struct ScoreRing: View {
 
     var body: some View {
         ZStack {
-            Circle().stroke(ServeAITheme.ink.opacity(0.12), lineWidth: lineWidth)
+            Circle().stroke(ServeAITheme.separator, lineWidth: lineWidth)
             Circle()
                 .trim(from: 0, to: CGFloat(max(0, min(100, score))) / 100)
                 .stroke(ServeAITheme.brand, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
@@ -38,9 +37,8 @@ struct ScoreRing: View {
                     .foregroundStyle(ServeAITheme.ink)
                     .contentTransition(.numericText())
                     .minimumScaleFactor(0.6)
-                Text("SERVE SCORE")
+                Text("Serve score")
                     .font(ServeAITheme.mono(.caption2, size: max(8, diameter * 0.06), bold: true))
-                    .tracking(1.2)
                     .foregroundStyle(ServeAITheme.brand)
             }
         }
@@ -56,16 +54,14 @@ struct EvidenceQualityBadge: View {
     var contextLabel = "Video evidence"
 
     var body: some View {
-        Label("\(contextLabel.uppercased()) · \(confidence.title.uppercased())", systemImage: confidence.symbol)
+        Label("\(contextLabel) · \(confidence.title)", systemImage: confidence.symbol)
             .font(ServeAITheme.mono(.caption2, size: 10, bold: true))
-            .tracking(0.7)
             .lineLimit(1)
             .minimumScaleFactor(0.75)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 6)
             .foregroundStyle(foreground)
-            .background(foreground.opacity(0.14), in: Capsule())
-            .overlay { Capsule().stroke(foreground.opacity(0.30)) }
+            .background(foreground.opacity(0.10), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             .accessibilityLabel("\(contextLabel): \(confidence.title)")
     }
 
@@ -83,9 +79,8 @@ struct ServeAISectionLabel: View {
     var color = ServeAITheme.brand
 
     var body: some View {
-        Text(text.uppercased())
-            .font(ServeAITheme.mono(.caption2, size: 10, bold: true))
-            .tracking(1.4)
+        Text(text)
+            .font(ServeAITheme.body(.caption, size: 12, weight: .semibold))
             .foregroundStyle(color)
     }
 }
@@ -111,8 +106,7 @@ struct ErrorBanner: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
         .foregroundStyle(ServeAITheme.ink)
-        .background(ServeAITheme.pink.opacity(0.15), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(ServeAITheme.pink.opacity(0.38)) }
+        .background(ServeAITheme.pink.opacity(0.13), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 }
@@ -127,11 +121,10 @@ struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 18) {
             Image(systemName: symbol)
-                .font(.system(size: 38, weight: .medium))
+                .font(.system(size: 34, weight: .regular))
                 .foregroundStyle(ServeAITheme.brand)
-                .frame(width: 78, height: 78)
-                .background(ServeAITheme.brand.opacity(0.10), in: Circle())
-            Text(title.uppercased())
+                .frame(width: 64, height: 64)
+            Text(title)
                 .font(ServeAITheme.display(.title2, size: 21))
                 .multilineTextAlignment(.center)
             Text(message)

@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct HomeView: View {
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let analyses: [ServeAnalysis]
     let analyze: () -> Void
     let open: (UUID) -> Void
@@ -11,132 +10,237 @@ struct HomeView: View {
     let startPilotCapture: () -> Void
 
     private var latest: ServeAnalysis? { analyses.first }
+
     var body: some View {
-        ScrollView {
-            Group {
-                if dynamicTypeSize.isAccessibilitySize {
-                    accessibilityHome
-                } else {
-                    regularHome
+        ZStack {
+            ServeAIBackground(showsSpotlight: true)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    masthead
+                    introduction
+                    activityStrip
+                    latestAnalysis
+                    practiceSection
+                    recentSection
                 }
+                .frame(maxWidth: 560, alignment: .leading)
+                .padding(.horizontal, 22)
+                .padding(.top, 10)
+                .padding(.bottom, 116)
             }
-            .frame(maxWidth: 520)
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-            .padding(.bottom, 28)
+            .scrollIndicators(.hidden)
         }
-        .scrollIndicators(.hidden)
-        .serveAIBackground()
+        .safeAreaInset(edge: .bottom) {
+            analyzeAction
+        }
         .toolbar(.hidden, for: .navigationBar)
     }
 
-    private var regularHome: some View {
-        VStack(spacing: 16) {
-            homeHeader
-            stats
-            lastServe
-            actionTiles
+    private var masthead: some View {
+        HStack(spacing: 12) {
+            ServeAILogo()
+            Spacer()
+            Label("On-device", systemImage: "lock.fill")
+                .font(ServeAITheme.body(.caption, size: 12, weight: .medium))
+                .foregroundStyle(ServeAITheme.mutedInk)
+            profileMenu
+        }
+        .frame(minHeight: 48)
+        .padding(.bottom, 30)
+    }
+
+    private var introduction: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("One serve.\nOne clear next move.")
+                .font(ServeAITheme.display(.largeTitle, size: 39))
+                .tracking(-1.15)
+                .foregroundStyle(ServeAITheme.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Record the full motion and get one evidence-based priority for your next basket.")
+                .font(ServeAITheme.body(.body, size: 16))
+                .foregroundStyle(ServeAITheme.mutedInk)
+                .lineSpacing(4)
+                .frame(maxWidth: 430, alignment: .leading)
+        }
+        .padding(.bottom, 28)
+    }
+
+    private var activityStrip: some View {
+        HStack(spacing: 0) {
+            activityValue("\(analyses.count)", label: "serves read")
+            Rectangle().fill(ServeAITheme.separator).frame(width: 1, height: 38).padding(.horizontal, 18)
+            activityValue("\(practiceStreak)", label: practiceStreak == 1 ? "day active" : "days active")
+            Spacer(minLength: 0)
+            Button("View progress", action: showProgress)
+                .font(ServeAITheme.body(.subheadline, size: 14, weight: .semibold))
+                .foregroundStyle(ServeAITheme.brand)
+                .frame(minHeight: 44)
+        }
+        .padding(.vertical, 17)
+        .overlay(alignment: .top) { hairline }
+        .overlay(alignment: .bottom) { hairline }
+    }
+
+    private func activityValue(_ value: String, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value)
+                .font(ServeAITheme.display(.title3, size: 23))
+                .foregroundStyle(ServeAITheme.ink)
+                .contentTransition(.numericText())
+            Text(label)
+                .font(ServeAITheme.body(.caption, size: 12))
+                .foregroundStyle(ServeAITheme.mutedInk)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var latestAnalysis: some View {
+        if let latest {
+            Button { open(latest.id) } label: {
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Latest analysis")
+                            .font(ServeAITheme.display(.title2, size: 24))
+                            .foregroundStyle(ServeAITheme.ink)
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(ServeAITheme.brand)
+                    }
+
+                    HStack(spacing: 12) {
+                        Label {
+                            Text("Score \(latest.overallScore)")
+                        } icon: {
+                            Image(systemName: "gauge.with.dots.needle.33percent")
+                        }
+                        .font(ServeAITheme.body(.headline, size: 17, weight: .semibold))
+                        .foregroundStyle(ServeAITheme.brand)
+                        .contentTransition(.numericText())
+                        Spacer()
+                        Text(latest.createdAt, format: .dateTime.month(.abbreviated).day())
+                            .font(ServeAITheme.body(.caption, size: 12))
+                            .foregroundStyle(ServeAITheme.faintInk)
+                    }
+
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text(priorityTitle(for: latest))
+                            .font(ServeAITheme.body(.headline, size: 17, weight: .semibold))
+                            .foregroundStyle(ServeAITheme.ink)
+                        Text(priorityLine(for: latest))
+                            .font(ServeAITheme.body(.subheadline, size: 14))
+                            .foregroundStyle(ServeAITheme.mutedInk)
+                            .lineSpacing(3)
+                            .multilineTextAlignment(.leading)
+                        Text("\(latest.cameraAngle.title) · \(latest.confidence.evidenceQualityTitle)")
+                            .font(ServeAITheme.mono(.caption2, size: 10))
+                            .foregroundStyle(ServeAITheme.faintInk)
+                            .padding(.top, 3)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 26)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Opens the latest serve report")
+        } else {
+            Button(action: analyze) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Your first read starts here")
+                        .font(ServeAITheme.display(.title2, size: 25))
+                        .foregroundStyle(ServeAITheme.ink)
+                    Text("Use a side or rear angle, keep the full body and racket visible, and capture one complete motion.")
+                        .font(ServeAITheme.body(.body, size: 15))
+                        .foregroundStyle(ServeAITheme.mutedInk)
+                        .lineSpacing(4)
+                    Label("Set up a recording", systemImage: "arrow.right")
+                        .font(ServeAITheme.body(.subheadline, size: 15, weight: .semibold))
+                        .foregroundStyle(ServeAITheme.brand)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.vertical, 26)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var practiceSection: some View {
+        Button(action: latest.map { item in { open(item.id) } } ?? analyze) {
+            HStack(alignment: .center, spacing: 16) {
+                Image(systemName: "figure.tennis")
+                    .font(.system(size: 20, weight: .regular))
+                    .foregroundStyle(ServeAITheme.brand)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Next practice")
+                        .font(ServeAITheme.body(.caption, size: 12, weight: .semibold))
+                        .foregroundStyle(ServeAITheme.mutedInk)
+                    Text(latest?.drills.first?.name ?? "Record one clean serve")
+                        .font(ServeAITheme.body(.headline, size: 17, weight: .semibold))
+                        .foregroundStyle(ServeAITheme.ink)
+                    Text(latest?.drills.first?.dosage ?? "We’ll turn the result into one focused drill.")
+                        .font(ServeAITheme.body(.caption, size: 13))
+                        .foregroundStyle(ServeAITheme.mutedInk)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(ServeAITheme.faintInk)
+            }
+            .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .serveAISection()
+    }
+
+    @ViewBuilder
+    private var recentSection: some View {
+        if !analyses.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text("Recent serves")
+                        .font(ServeAITheme.display(.title3, size: 21))
+                    Spacer()
+                    Button("See all", action: showHistory)
+                        .font(ServeAITheme.body(.subheadline, size: 14, weight: .semibold))
+                        .foregroundStyle(ServeAITheme.brand)
+                        .frame(minHeight: 44)
+                }
+                .padding(.top, 24)
+                .padding(.bottom, 8)
+
+                ForEach(Array(analyses.prefix(3))) { analysis in
+                    Button { open(analysis.id) } label: {
+                        AnalysisRow(analysis: analysis)
+                            .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.plain)
+                    .overlay(alignment: .top) { hairline }
+                }
+            }
+        }
+    }
+
+    private var analyzeAction: some View {
+        VStack(spacing: 0) {
+            Rectangle().fill(ServeAITheme.separator).frame(height: 1)
             Button(action: analyze) {
                 HStack {
-                    Text("ANALYZE A SERVE")
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.65)
+                    Text("Analyze a serve")
                     Spacer()
                     Image(systemName: "arrow.right")
                 }
             }
             .buttonStyle(ServeAIPrimaryButtonStyle())
-            .accessibilityHint("Opens the recording and upload guide")
+            .padding(.horizontal, 22)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
         }
-    }
-
-    private var accessibilityHome: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                Text(Date.now, format: .dateTime.weekday(.abbreviated).hour().minute())
-                    .font(.caption.monospaced())
-                    .foregroundStyle(ServeAITheme.mutedInk)
-                Spacer()
-                profileMenu
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text("GO BREAK")
-                    .foregroundStyle(ServeAITheme.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.55)
-                Text("SOMETHING.")
-                    .foregroundStyle(ServeAITheme.brand)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.55)
-            }
-            .font(ServeAITheme.display(.caption, size: 20))
-
-            AccessibilityStatRow(symbol: "flame.fill", text: "\(practiceStreak) day streak", color: ServeAITheme.orange)
-            AccessibilityStatRow(symbol: "tennisball.fill", text: "\(analyses.count) serves read", color: ServeAITheme.cyan)
-
-            Button(action: latest.map { item in { open(item.id) } } ?? analyze) {
-                VStack(alignment: .leading, spacing: 10) {
-                    ServeAISectionLabel(text: latest == nil ? "FIRST SERVE" : "LATEST SERVE")
-                    if let latest {
-                        Text("\(latest.overallScore) OUT OF 100")
-                            .foregroundStyle(ServeAITheme.brand)
-                        Text(priorityLine(for: latest))
-                            .font(.body)
-                            .foregroundStyle(ServeAITheme.mutedInk)
-                    } else {
-                        Text("PUT A SCORE ON THE BOARD")
-                        Text("Record one complete motion to start your history.")
-                            .font(.body)
-                            .foregroundStyle(ServeAITheme.mutedInk)
-                    }
-                }
-                .font(ServeAITheme.display(.caption, size: 18))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(20)
-                .background(ServeAITheme.heroGradient, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .overlay { RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(ServeAITheme.brand.opacity(0.22)) }
-            }
-            .buttonStyle(.plain)
-
-            VStack(spacing: 10) { actionTileItems }
-
-            Button(action: analyze) {
-                Label("Analyze a serve", systemImage: "arrow.right")
-                    .font(.title2.bold())
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(20)
-                    .foregroundStyle(ServeAITheme.background)
-                    .background(ServeAITheme.brand, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("Opens the recording and upload guide")
-        }
-    }
-
-    private var homeHeader: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(Date.now, format: .dateTime.weekday(.abbreviated).hour().minute())
-                    .font(ServeAITheme.mono(.caption2, size: 10))
-                    .tracking(1.4)
-                    .foregroundStyle(ServeAITheme.faintInk)
-                    .textCase(.uppercase)
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("GO BREAK")
-                        .foregroundStyle(ServeAITheme.ink)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.55)
-                    Text("SOMETHING.")
-                        .foregroundStyle(ServeAITheme.brand)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.55)
-                }
-                .font(ServeAITheme.display(.title, size: 27))
-                .lineSpacing(-2)
-            }
-            Spacer()
-            profileMenu
-        }
+        .background(ServeAITheme.background)
+        .accessibilityHint("Opens the recording and upload guide")
     }
 
     private var profileMenu: some View {
@@ -146,121 +250,17 @@ struct HomeView: View {
             Button(action: importCoachTask) { Label("Import coach task", systemImage: "person.crop.rectangle.stack") }
             Button(action: startPilotCapture) { Label("Pilot data capture", systemImage: "checklist.checked") }
         } label: {
-            Text("M")
-                .font(ServeAITheme.display(.headline, size: 16))
-                .foregroundStyle(Color(red: 26 / 255, green: 7 / 255, blue: 16 / 255))
-                .frame(width: 46, height: 46)
-                .background(
-                    LinearGradient(colors: [ServeAITheme.pink, ServeAITheme.orange], startPoint: .topLeading, endPoint: .bottomTrailing),
-                    in: Circle()
-                )
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(ServeAITheme.ink)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
         .accessibilityLabel("Open ServeAI menu")
     }
 
-    private var stats: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 9) { statItems }
-            VStack(spacing: 9) { statItems }
-        }
-    }
-
-    @ViewBuilder
-    private var lastServe: some View {
-        if let latest {
-            Button { open(latest.id) } label: {
-                ZStack(alignment: .topTrailing) {
-                    Circle()
-                        .fill(ServeAITheme.brand.opacity(0.09))
-                        .frame(width: 150, height: 150)
-                        .offset(x: 36, y: -42)
-                    HStack(alignment: .bottom, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("LAST SERVE · \(latest.createdAt.formatted(.dateTime.weekday(.abbreviated)).uppercased())")
-                                .font(ServeAITheme.mono(.caption2, size: 9.5))
-                                .tracking(1.1)
-                                .foregroundStyle(ServeAITheme.mutedInk)
-                            HStack(alignment: .firstTextBaseline, spacing: 5) {
-                                Text(latest.overallScore, format: .number)
-                                    .font(ServeAITheme.display(.largeTitle, size: 50))
-                                    .foregroundStyle(ServeAITheme.brand)
-                                Text("/100")
-                                    .font(ServeAITheme.display(.caption, size: 14))
-                                    .foregroundStyle(ServeAITheme.mutedInk)
-                            }
-                            Text(priorityLine(for: latest))
-                                .font(ServeAITheme.body(.caption, size: 13))
-                                .foregroundStyle(ServeAITheme.ink.opacity(0.78))
-                                .multilineTextAlignment(.leading)
-                                .lineLimit(2)
-                        }
-                        Spacer(minLength: 4)
-                        ScoreBars(scores: analyses.prefix(5).reversed().map(\.overallScore))
-                    }
-                    .padding(18)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(ServeAITheme.heroGradient, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-                .overlay { RoundedRectangle(cornerRadius: 26, style: .continuous).stroke(ServeAITheme.brand.opacity(0.22)) }
-                .clipped()
-                .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("Opens the latest serve report")
-        } else {
-            Button(action: analyze) {
-                HStack(spacing: 14) {
-                    Image(systemName: "viewfinder")
-                        .font(.system(size: 28, weight: .semibold))
-                        .foregroundStyle(ServeAITheme.brand)
-                    VStack(alignment: .leading, spacing: 5) {
-                        ServeAISectionLabel(text: "FIRST SERVE")
-                        Text("PUT A SCORE ON THE BOARD")
-                            .font(ServeAITheme.display(.headline, size: 18))
-                            .foregroundStyle(ServeAITheme.ink)
-                        Text("Record one complete motion to start your history.")
-                            .font(ServeAITheme.body(.caption, size: 13))
-                            .foregroundStyle(ServeAITheme.mutedInk)
-                    }
-                    Spacer()
-                    Image(systemName: "arrow.right")
-                        .foregroundStyle(ServeAITheme.brand)
-                }
-                .padding(18)
-                .background(ServeAITheme.heroGradient, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-                .overlay { RoundedRectangle(cornerRadius: 26, style: .continuous).stroke(ServeAITheme.brand.opacity(0.22)) }
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    private var actionTiles: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 9) { actionTileItems }
-            VStack(spacing: 9) { actionTileItems }
-        }
-    }
-
-    @ViewBuilder
-    private var statItems: some View {
-        StatChip(symbol: "flame.fill", value: "\(practiceStreak)", label: "DAY STREAK", color: ServeAITheme.orange)
-        StatChip(symbol: "tennisball.fill", value: "\(analyses.count)", label: "SERVES READ", color: ServeAITheme.cyan)
-    }
-
-    @ViewBuilder
-    private var actionTileItems: some View {
-        HomeActionTile(
-            symbol: "bolt.fill",
-            title: latest?.drills.first?.name ?? "Toss drill",
-            detail: latest == nil ? "analyze to assign" : (latest?.drills.first?.dosage ?? "practice plan"),
-            action: latest.map { item in { open(item.id) } } ?? analyze
-        )
-        HomeActionTile(
-            symbol: "film.stack.fill",
-            title: "My clips",
-            detail: "\(analyses.count) analyzed",
-            action: showHistory
-        )
+    private var hairline: some View {
+        Rectangle().fill(ServeAITheme.separator).frame(height: 1)
     }
 
     private var practiceStreak: Int {
@@ -275,109 +275,12 @@ struct HomeView: View {
         return streak
     }
 
+    private func priorityTitle(for analysis: ServeAnalysis) -> String {
+        analysis.mainImprovement?.title ?? "Review the available evidence"
+    }
+
     private func priorityLine(for analysis: ServeAnalysis) -> String {
-        if let priority = analysis.mainImprovement {
-            return "\(priority.relatedPhase.shortTitle) is the next fix. Let's own it today."
-        }
-        return "Open the verdict and take one clear priority to court."
-    }
-}
-
-private struct StatChip: View {
-    let symbol: String
-    let value: String
-    let label: String
-    let color: Color
-
-    var body: some View {
-        HStack(spacing: 9) {
-            Image(systemName: symbol)
-                .font(.system(size: 17, weight: .semibold))
-            VStack(alignment: .leading, spacing: 1) {
-                Text(value)
-                    .font(ServeAITheme.display(.headline, size: 16))
-                Text(label)
-                    .font(ServeAITheme.mono(.caption2, size: 9, bold: true))
-                    .tracking(0.8)
-                    .opacity(0.78)
-            }
-        }
-        .foregroundStyle(color)
-        .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
-        .padding(.horizontal, 13)
-        .background(color.opacity(0.13), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(color.opacity(0.34)) }
-        .accessibilityElement(children: .combine)
-    }
-}
-
-private struct AccessibilityStatRow: View {
-    let symbol: String
-    let text: String
-    let color: Color
-
-    var body: some View {
-        Label(text, systemImage: symbol)
-            .font(.title2.bold())
-            .foregroundStyle(color)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(18)
-            .background(color.opacity(0.13), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(color.opacity(0.34)) }
-    }
-}
-
-private struct ScoreBars: View {
-    let scores: [Int]
-
-    var body: some View {
-        HStack(alignment: .bottom, spacing: 4) {
-            ForEach(Array(values.enumerated()), id: \.offset) { index, score in
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(ServeAITheme.brand.opacity(index == values.count - 1 ? 1 : 0.28 + Double(index) * 0.09))
-                    .frame(width: 12, height: max(24, CGFloat(score) * 0.68))
-            }
-        }
-        .frame(height: 76, alignment: .bottom)
-        .accessibilityHidden(true)
-    }
-
-    private var values: [Int] {
-        if scores.count >= 5 { return Array(scores.suffix(5)) }
-        let fallback = [46, 58, 52, 69, 82]
-        return Array(fallback.prefix(5 - scores.count)) + scores
-    }
-}
-
-private struct HomeActionTile: View {
-    let symbol: String
-    let title: String
-    let detail: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 5) {
-                Image(systemName: symbol)
-                    .foregroundStyle(ServeAITheme.brand)
-                Text(title)
-                    .font(ServeAITheme.display(.subheadline, size: 12))
-                    .foregroundStyle(ServeAITheme.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-                Text(detail)
-                    .font(ServeAITheme.body(.caption, size: 11))
-                    .foregroundStyle(ServeAITheme.mutedInk)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-            }
-            .frame(maxWidth: .infinity, minHeight: 78, alignment: .leading)
-            .padding(13)
-            .background(ServeAITheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(ServeAITheme.separator) }
-        }
-        .buttonStyle(.plain)
-        .frame(maxWidth: .infinity)
+        analysis.mainImprovement?.correction ?? "The view is limited. Use a stable side or rear angle before changing your technique."
     }
 }
 
@@ -396,14 +299,21 @@ struct AnalysisRow: View {
                     .foregroundStyle(ServeAITheme.ink)
                 Text(
                     analysis.source == .researchCapture
-                        ? "Research usability sample · no score"
+                        ? "Research sample · no score"
                         : "\(analysis.cameraAngle.title) · \(analysis.confidence.evidenceQualityTitle)"
                 )
-                    .font(ServeAITheme.mono(.caption2, size: 10))
-                    .foregroundStyle(ServeAITheme.mutedInk)
+                .font(ServeAITheme.body(.caption, size: 12))
+                .foregroundStyle(ServeAITheme.mutedInk)
             }
             Spacer()
+            if analysis.source != .researchCapture {
+                Text(analysis.overallScore, format: .number)
+                    .font(ServeAITheme.display(.title3, size: 21))
+                    .foregroundStyle(ServeAITheme.brand)
+                    .contentTransition(.numericText())
+            }
             Image(systemName: "chevron.right")
+                .font(.caption)
                 .foregroundStyle(ServeAITheme.faintInk)
         }
         .frame(minHeight: 64)
@@ -411,7 +321,7 @@ struct AnalysisRow: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             analysis.source == .researchCapture
-                ? "\(analysis.createdAt.formatted(date: .abbreviated, time: .omitted)), research usability sample, no coaching score"
+                ? "\(analysis.createdAt.formatted(date: .abbreviated, time: .omitted)), research sample, no coaching score"
                 : "\(analysis.createdAt.formatted(date: .abbreviated, time: .omitted)), estimated score \(analysis.overallScore) out of 100, \(analysis.cameraAngle.title), \(analysis.confidence.evidenceQualityTitle)"
         )
         .accessibilityHint("Opens the serve report")
