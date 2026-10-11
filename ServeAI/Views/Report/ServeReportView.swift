@@ -377,7 +377,7 @@ private struct CoachTaskExportSheet: View {
                 VStack(alignment: .leading, spacing: 18) {
                     VStack(alignment: .leading, spacing: 7) {
                         ServeAISectionLabel(text: "CROSS-DEVICE LABELING")
-                        Text("CREATE A BLIND TASK")
+                        Text("Create a blind task")
                             .font(ServeAITheme.display(.title2, size: 23))
                         Text("This signs the capture slot, report, pose sequence, analysis identity, and source-video fingerprint as one immutable task.")
                             .font(ServeAITheme.body(.body, size: 15))
