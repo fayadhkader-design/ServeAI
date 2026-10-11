@@ -47,7 +47,7 @@ struct FrameReviewView: View {
             }
             .foregroundStyle(ServeAITheme.ink)
             .accessibilityLabel("Back to verdict")
-            Text("FRAME BY FRAME")
+            Text("Frame by frame")
                 .font(ServeAITheme.display(.title3, size: 18))
             Spacer()
         }
