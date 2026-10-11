@@ -60,7 +60,7 @@ struct PilotCaptureSetupView: View {
                     guard let slot else { return }
                     appModel.beginPilotCapture(slot)
                 } label: {
-                    Label("LOAD SLOT AND CONTINUE", systemImage: "arrow.right")
+                    Label("Load slot and continue", systemImage: "arrow.right")
                 }
                 .buttonStyle(ServeAIPrimaryButtonStyle())
                 .disabled(slot == nil)
