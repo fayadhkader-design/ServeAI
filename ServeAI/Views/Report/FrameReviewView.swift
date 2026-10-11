@@ -66,7 +66,7 @@ struct FrameReviewView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "film")
                         .font(.system(size: 34, weight: .medium))
-                    Text("SERVE FOOTAGE UNAVAILABLE")
+                    Text("Serve footage unavailable")
                         .font(ServeAITheme.mono(.caption, size: 10, bold: true))
                         .tracking(1)
                 }
