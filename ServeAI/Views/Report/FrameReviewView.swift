@@ -196,7 +196,7 @@ struct FrameReviewView: View {
             .disabled(selectedIndex == 0)
 
             Button { select(min(phases.count - 1, selectedIndex + 1)) } label: {
-                HStack { Text("NEXT"); Image(systemName: "arrow.right") }
+                HStack { Text("Next"); Image(systemName: "arrow.right") }
             }
             .font(ServeAITheme.display(.caption, size: 13))
             .foregroundStyle(ServeAITheme.brand)
