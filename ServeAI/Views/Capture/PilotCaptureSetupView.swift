@@ -85,7 +85,7 @@ struct PilotCaptureSetupView: View {
             }
             .foregroundStyle(ServeAITheme.ink)
             .accessibilityLabel("Back")
-            Text("COLLECTION SETUP")
+            Text("Collection setup")
                 .font(ServeAITheme.display(.title3, size: 19))
             Spacer()
         }
