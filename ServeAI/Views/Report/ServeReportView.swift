@@ -467,7 +467,7 @@ private struct CoachTaskExportSheet: View {
                         createTask()
                     } label: {
                         if isCreating {
-                            HStack { ProgressView(); Text("SIGNING TASK…") }
+                            HStack { ProgressView(); Text("Signing task…") }
                         } else {
                             Label("CREATE SIGNED TASK", systemImage: "signature")
                         }
