@@ -18,7 +18,7 @@ struct CoachTaskImportView: View {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
                     ServeAISectionLabel(text: "BLIND COACH REVIEW")
-                    Text("IMPORT A COACH TASK")
+                    Text("Import a coach task")
                         .font(ServeAITheme.display(.title, size: 27))
                     Text("ServeAI verifies the coordinator signature and the exact video before opening a fresh annotation session.")
                         .font(ServeAITheme.body(.body, size: 15))
