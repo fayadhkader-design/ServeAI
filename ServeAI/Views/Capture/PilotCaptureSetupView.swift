@@ -28,7 +28,7 @@ struct PilotCaptureSetupView: View {
                 header
 
                 VStack(alignment: .leading, spacing: 7) {
-                    Text("PILOT DATA CAPTURE")
+                    Text("Pilot data capture")
                         .font(ServeAITheme.display(.title2, size: 24))
                     Text("Load the assigned frozen slot before recording. ServeAI will lock its participant, view, skill cohort, and video format so the sample cannot drift into another split.")
                         .font(ServeAITheme.body(.body, size: 15))
