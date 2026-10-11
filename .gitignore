@@ -28,6 +28,7 @@ AppStore/ExportOptions.plist
 # Generated development output
 work/
 outputs/
+.impeccable/review/
 
 # Local annotation state
 AnnotationPortal/data/*
