@@ -136,7 +136,7 @@ struct VideoReviewView: View {
                 }
 
                 HStack(spacing: 9) {
-                    Button { dismiss() } label: { Label("RETAKE", systemImage: "video.badge.plus") }
+                    Button { dismiss() } label: { Label("Retake", systemImage: "video.badge.plus") }
                         .buttonStyle(ServeAISecondaryButtonStyle())
                     PhotosPicker(selection: $replacementItem, matching: .videos) {
                         Label("ANOTHER", systemImage: "folder.fill")
