@@ -183,7 +183,7 @@ struct CoachAnnotationView: View {
             .accessibilityLabel("Back")
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("COACH LABELS")
+                Text("Coach labels")
                     .font(ServeAITheme.display(.title3, size: 19))
                 Text("Schema v\(CoachServeAnnotationPackage.currentSchemaVersion) · Rubric v\(CoachAnnotationRubric.version)")
                     .font(ServeAITheme.mono(.caption2, size: 9, bold: true))
