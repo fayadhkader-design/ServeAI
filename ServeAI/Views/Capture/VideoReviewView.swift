@@ -139,7 +139,7 @@ struct VideoReviewView: View {
                     Button { dismiss() } label: { Label("Retake", systemImage: "video.badge.plus") }
                         .buttonStyle(ServeAISecondaryButtonStyle())
                     PhotosPicker(selection: $replacementItem, matching: .videos) {
-                        Label("ANOTHER", systemImage: "folder.fill")
+                        Label("Choose another", systemImage: "folder.fill")
                     }
                     .buttonStyle(ServeAISecondaryButtonStyle())
                 }
