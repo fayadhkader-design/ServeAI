@@ -20,15 +20,15 @@ struct HistoryView: View {
                     )
                 } else {
                     HStack {
-                        ServeAISectionLabel(text: "\(analyses.count) CLIPS STORED")
+                        ServeAISectionLabel(text: "\(analyses.count) clips stored")
                         Spacer()
-                        Text("ON THIS IPHONE")
+                        Text("On this iPhone")
                             .font(ServeAITheme.mono(.caption2, size: 9))
                             .tracking(0.6)
                             .foregroundStyle(ServeAITheme.faintInk)
                     }
 
-                    LazyVStack(spacing: 10) {
+                    LazyVStack(spacing: 0) {
                         ForEach(analyses) { analysis in
                             HistoryCard(
                                 analysis: analysis,
@@ -72,8 +72,8 @@ struct HistoryView: View {
             }
             .foregroundStyle(ServeAITheme.ink)
             .accessibilityLabel("Back")
-            Text("MY CLIPS")
-                .font(ServeAITheme.display(.title3, size: 19))
+            Text("My clips")
+                .font(ServeAITheme.display(.title2, size: 25))
             Spacer()
         }
     }
@@ -110,9 +110,8 @@ private struct HistoryCard: View {
             }
             .accessibilityLabel("Delete analysis from \(analysis.createdAt.formatted(date: .abbreviated, time: .omitted))")
         }
-        .padding(14)
-        .background(ServeAITheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(ServeAITheme.separator) }
+        .padding(.vertical, 12)
+        .overlay(alignment: .top) { Rectangle().fill(ServeAITheme.separator).frame(height: 1) }
         .contextMenu {
             Button(role: .destructive, action: requestDelete) {
                 Label("Delete analysis", systemImage: "trash")
@@ -126,13 +125,13 @@ private struct PhaseChip: View {
     let color: Color
 
     var body: some View {
-        Text(title.uppercased())
+        Text(title)
             .font(ServeAITheme.mono(.caption2, size: 8.5, bold: true))
             .tracking(0.4)
             .foregroundStyle(color)
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
-            .background(color.opacity(0.10), in: Capsule())
+            .background(color.opacity(0.10), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
     }
 }
 

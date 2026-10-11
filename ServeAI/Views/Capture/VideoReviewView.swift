@@ -55,13 +55,13 @@ struct VideoReviewView: View {
                         .background(ServeAITheme.deepSurface)
                         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                         .accessibilityLabel("Serve video preview")
-                    Text("\(clipSelection.usesFullClip ? "FULL" : "SELECTED") CLIP · \(angle.title.uppercased())")
+                    Text("\(clipSelection.usesFullClip ? "Full" : "Selected") clip · \(angle.title)")
                         .font(ServeAITheme.mono(.caption2, size: 9.5, bold: true))
                         .tracking(0.6)
                         .foregroundStyle(ServeAITheme.brand)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 7)
-                        .background(ServeAITheme.background.opacity(0.82), in: Capsule())
+                        .background(ServeAITheme.background.opacity(0.88), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
                         .padding(12)
                 }
                 .overlay { RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(ServeAITheme.separator) }
@@ -71,10 +71,10 @@ struct VideoReviewView: View {
                         player.seek(to: CMTime(seconds: clipStart, preferredTimescale: 600))
                         player.play()
                     } label: {
-                        Label("REPLAY", systemImage: "arrow.counterclockwise")
+                        Label("Replay", systemImage: "arrow.counterclockwise")
                     }
                     Spacer()
-                    Label("ONE COMPLETE MOTION", systemImage: "checkmark.circle.fill")
+                    Label("One complete motion", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(ServeAITheme.brand)
                 }
                 .font(ServeAITheme.mono(.caption2, size: 9.5, bold: true))
@@ -168,7 +168,7 @@ struct VideoReviewView: View {
     private var clipSelectionCard: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
-                Text("SELECT ONE SERVE")
+                Text("Select one serve")
                     .font(ServeAITheme.body(.subheadline, size: 15, weight: .bold))
                 Spacer()
                 if sourceDuration != nil {
@@ -206,7 +206,7 @@ struct VideoReviewView: View {
                     Button {
                         Task { await assessRecordingQuality(for: clipSelection) }
                     } label: {
-                        Label("CHECK SELECTED CLIP", systemImage: "viewfinder")
+                        Label("Check selected clip", systemImage: "viewfinder")
                     }
                     .buttonStyle(ServeAISecondaryButtonStyle())
                     .accessibilityHint("Exports this range and checks whether one complete serve is visible")
@@ -219,7 +219,7 @@ struct VideoReviewView: View {
             } else {
                 HStack(spacing: 10) {
                     ProgressView().tint(ServeAITheme.brand)
-                    Text("READING VIDEO DURATION")
+                    Text("Reading video duration")
                         .font(ServeAITheme.mono(.caption, size: 10, bold: true))
                 }
                 .frame(minHeight: 44)
@@ -259,8 +259,8 @@ struct VideoReviewView: View {
             }
             .foregroundStyle(ServeAITheme.ink)
             .accessibilityLabel("Back")
-            Text("CHECK THE CLIP")
-                .font(ServeAITheme.display(.title3, size: 19))
+            Text("Check the clip")
+                .font(ServeAITheme.display(.title2, size: 25))
             Spacer()
         }
     }
@@ -271,7 +271,7 @@ struct VideoReviewView: View {
             HStack(spacing: 12) {
                 ProgressView().tint(ServeAITheme.cyan)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("CHECKING RECORDING QUALITY")
+                    Text("Checking recording quality")
                         .font(ServeAITheme.body(.subheadline, size: 14, weight: .semibold))
                     Text("Verifying framing, visibility, resolution, and pose tracking")
                         .font(ServeAITheme.body(.caption, size: 12))
@@ -291,7 +291,7 @@ struct VideoReviewView: View {
                 }
                 .foregroundStyle(qualityColor(report.status))
 
-                Text("\(Int((report.poseCoverage * 100).rounded()))% OF SAMPLED FRAMES TRACKED")
+                Text("\(Int((report.poseCoverage * 100).rounded()))% of sampled frames tracked")
                     .font(ServeAITheme.mono(.caption2, size: 9, bold: true))
                     .foregroundStyle(ServeAITheme.mutedInk)
 

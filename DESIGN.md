@@ -1,50 +1,137 @@
-# ServeAI Design System
+---
+name: ServeAI
+description: A restrained, court-side editorial system for clear tennis serve coaching.
+colors:
+  court-night: "#0B0D0B"
+  deep-surface: "#101210"
+  utility-surface: "#161915"
+  raised-surface: "#1D201B"
+  chalk: "#F2F1E8"
+  muted-chalk: "#B1B3A9"
+  faint-chalk: "#7E8278"
+  grass-note: "#C5CFA8"
+  evidence-sage: "#8FAAA0"
+  caution-clay: "#D59A6F"
+  issue-red: "#C97B78"
+typography:
+  display:
+    fontFamily: "New York, ui-serif, serif"
+    fontSize: "39pt"
+    fontWeight: 600
+    lineHeight: 1.08
+    letterSpacing: "-1.15pt"
+  body:
+    fontFamily: "San Francisco, ui-sans-serif, sans-serif"
+    fontSize: "16pt"
+    fontWeight: 400
+    lineHeight: 1.45
+  label:
+    fontFamily: "San Francisco, ui-sans-serif, sans-serif"
+    fontSize: "12pt"
+    fontWeight: 600
+rounded:
+  metadata: "6pt"
+  surface: "12pt"
+spacing:
+  xs: "4pt"
+  sm: "8pt"
+  md: "16pt"
+  lg: "24pt"
+  xl: "32pt"
+components:
+  button-primary:
+    backgroundColor: "{colors.grass-note}"
+    textColor: "{colors.court-night}"
+    typography: "{typography.body}"
+    rounded: "{rounded.surface}"
+    padding: "18pt"
+    height: "56pt"
+  surface:
+    backgroundColor: "{colors.utility-surface}"
+    textColor: "{colors.chalk}"
+    rounded: "{rounded.surface}"
+    padding: "16pt"
+---
 
-## Reference and Intent
+# Design System: ServeAI
 
-The shipped interface is a native SwiftUI translation of the supplied Claude Design prototype. Its scene is an early-morning player checking one decisive coaching note beside a dark court: energetic, direct, and a little irreverent without disguising estimated analysis as laboratory truth.
+## Overview
 
-The visual target is intentionally dark-only. ServeAI preserves iOS navigation, permissions, video controls, VoiceOver semantics, Dynamic Type, and Reduce Motion beneath the prototype’s expressive layer.
+**Creative North Star: "The Court-Side Journal"**
 
-## Foundations
+ServeAI should feel like a serious player’s annotated practice journal translated into a native iPhone interface: quiet, direct, and specific. It borrows the editorial hierarchy and material restraint of the Ouranos DTS system without copying its product structure. The interface makes the evidence and next coaching action easy to read; it never uses visual spectacle to imply scientific certainty.
 
-- Platform: native iPhone UI using SwiftUI, NavigationStack, PhotosPicker, AVFoundation, VideoPlayer, Swift Charts, native alerts, and system back behavior.
-- Canvas: `#08150F` court green with a low-contrast 22-point diagonal line texture.
-- Typography: Archivo Black for display moments, Space Grotesk for coaching/body copy, and JetBrains Mono for metadata and compact labels. Every custom font is registered locally and uses a relative Dynamic Type style.
-- Color strategy: committed dark court architecture with acid lime as the primary action and score color. Cyan, pink, and orange are reserved for distinct stat, warning, phase, and capture roles.
-- Spacing: a 4-point base with 8, 12, 16, 20, 24, 28, and 32-point tiers.
-- Shape: 16-point utility surfaces, 18-point action tiles, 22-point buttons/callouts, 24–28-point hero and video containers, and full pills for metadata.
-- Motion: 150–300 ms state feedback. Continuous motion exists only while analysis is active and stops for Reduce Motion.
+The world is dark and warm rather than neon or cybernetic. Large serif moments establish a human coaching voice, while system sans-serif handles instructions and controls. Hairline rules organize reading order. Rounded containers are used only where interaction or grouping genuinely needs them.
 
-## Color Roles
+**Key Characteristics:**
+- Editorial headings paired with plain, high-legibility body copy.
+- One muted grass accent, used sparingly for actions and active state.
+- Flat sections and hairline dividers instead of card-on-card scaffolding.
+- Transparent evidence language and native iOS behavior.
 
-| Role | Value | Use |
-| --- | --- | --- |
-| Court | `#08150F` | Global background and on-accent text |
-| Deep surface | `#0C1F16` | Video and phase review wells |
-| Chalk | `#F3F5E8` | Primary text and pale result actions |
-| Serve lime | `#C6FF3D` | Primary CTA, score, selection, analysis progress |
-| Motion cyan | `#46D5FF` | Serves-read stat, record action, mid-score phases |
-| Contact pink | `#FF3D9A` | Priority fixes and destructive emphasis |
-| Energy orange | `#FF8A3D` | Streaks, medium video evidence, caution |
+## Colors
 
-Performance and evidence quality never rely on color alone. Numeric values, grade text, tags, symbols, and explicit labels remain present. Video evidence describes tracking conditions; model assurance is a separate textual status.
+The palette is warm graphite, chalk, and a desaturated grass note, with semantic colors reserved for evidence and warning states.
 
-## Screen Mapping
+**The One Accent Rule.** Grass Note carries the primary action and active analysis state; a screen does not add decorative competing accents.
 
-- Home reproduces the prototype’s rallying headline, streak/read chips, last-serve hero, practice and clip tiles, and bottom analyze CTA. Its avatar menu keeps History and Progress reachable without adding a tab bar that was absent from the reference.
-- Drop the Clip maps the prototype upload state onto the real PhotosPicker and camera route, retains side/rear angle choice, and enables the CTA only after a usable selection.
-- Check the Clip preserves replay, replacement, retake, and persistence while adding native start/end controls. The selected one-serve range is replayed, exported on-device, and rechecked before analysis.
-- Analyzing maps real progress stages onto the rotating multi-color dial and explicitly identifies simulated versus on-device processing.
-- The Verdict maps real score, grade, video-evidence quality, separate model assurance, coaching priority, provenance, detailed phases, drills, measurements, and limitations into the reference hierarchy.
-- Frame by Frame seeks the real video to each measured phase and shows the phase note, tag, score color, scrub position, and visible previous/next controls.
-- My Clips, The Trend, onboarding, camera, errors, and empty states extend the same palette and type system to functionality not present in the reference archive.
+**The Evidence Rule.** Sage, clay, and red communicate evidence or caution only. They never become decorative gradients.
 
-## Accessibility
+## Typography
 
-- All interactive targets are at least 44 by 44 points.
-- Custom fonts use `relativeTo` Dynamic Type styles; key horizontal groups fall back to vertical layouts when text grows.
-- Buttons, video controls, stat summaries, score dials, phase states, and icon-only actions have explicit accessibility labels or combined values.
-- Every colored state includes text or a symbol.
-- The analyzing animation is the only continuous animation and honors Reduce Motion.
-- Long screens scroll inside safe areas; no action is placed under the Dynamic Island or home indicator.
+**Display Font:** New York via SwiftUI’s system serif design.
+**Body Font:** San Francisco via SwiftUI’s system default design.
+**Data Font:** San Francisco Mono, only for measurements, dates, and compact evidence metadata.
+
+Display type is measured and editorial, not poster-like. Body type remains native and readable at Dynamic Type sizes.
+
+**The Sentence Case Rule.** Headings, controls, and status copy use sentence case. Uppercase is reserved for short machine-readable metadata originating in research tools.
+
+## Layout
+
+Phone screens use a single reading column with 20–24pt horizontal insets. Related content sits close together; sections receive 18–30pt separation and a one-point hairline when the boundary matters. The primary analysis action may be anchored above the home indicator so it stays reachable, while secondary navigation stays in the content flow.
+
+Dynamic Type reflows naturally instead of switching to a separate visual concept. Interactive targets remain at least 44pt.
+
+## Elevation & Depth
+
+The system is flat by default. Depth comes from tonal surface changes, sparse grain, and one fixed ambient spotlight near the home title. It does not use drop shadows, glow, glass, or blur for decoration.
+
+**The Flat-By-Default Rule.** A border, tonal fill, or whitespace is enough; never stack all three plus a shadow.
+
+## Shapes
+
+Utility surfaces and primary buttons use a restrained 12pt continuous corner. Evidence metadata may use a 6pt corner. Full capsules are limited to true compact tags or progress marks. Video retains slightly larger clipping where the media itself benefits from separation.
+
+## Components
+
+### Buttons
+- Primary: muted grass fill, near-black text, 56pt minimum height, 12pt corner, and a 0.975 press scale when Reduce Motion is off.
+- Secondary: graphite surface with chalk text and the same 12pt corner.
+- Text action: no container unless touch-area visibility requires it.
+
+### Sections
+- Default: transparent background with generous vertical rhythm and a one-point chalk-opacity divider.
+- Grouped utility surface: graphite fill, 12pt corner, no shadow, 16–20pt inset.
+
+### Evidence labels
+- Use explicit wording such as “Video evidence · Medium,” an SF Symbol, and a quiet semantic tint.
+- Evidence quality and model assurance remain separate concepts.
+
+### Motion
+- Numeric scores use native numeric text transitions.
+- Active analysis gets the system’s only continuous authored motion: a thin edge trace around its progress summary. It stops when Reduce Motion is enabled.
+
+## Do's and Don'ts
+
+### Do:
+- **Do** foreground the next useful coaching action.
+- **Do** show insufficient visibility instead of inventing precision.
+- **Do** use whitespace and rules to create hierarchy.
+- **Do** preserve native controls, accessibility semantics, and system navigation.
+
+### Don't:
+- **Don't** use neon gradients, glowing rings, gradient avatars, or multicolor progress tracks.
+- **Don't** label deterministic or heuristic output as a personified “Coach AI.”
+- **Don't** turn every row or section into a rounded card.
+- **Don't** use all-caps hype copy as a substitute for hierarchy.

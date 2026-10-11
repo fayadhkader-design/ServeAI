@@ -25,7 +25,7 @@ struct ServeReportView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 0) {
                 reportHeader
                 if analysis.source == .researchCapture {
                     researchCaptureCard
@@ -35,17 +35,13 @@ struct ServeReportView: View {
 
                     Button(action: openFrameReview) {
                         HStack {
-                            Text("FRAME BY FRAME")
+                            Text("Review frame by frame")
                             Spacer()
                             Image(systemName: "arrow.right")
                         }
-                        .font(ServeAITheme.display(.headline, size: 17))
-                        .foregroundStyle(ServeAITheme.background)
-                        .frame(maxWidth: .infinity, minHeight: 58)
-                        .padding(.horizontal, 18)
-                        .background(ServeAITheme.ink, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(ServeAIPrimaryButtonStyle())
+                    .padding(.vertical, 18)
                     .accessibilityHint("Opens the video phase review")
                 }
 
@@ -55,7 +51,7 @@ struct ServeReportView: View {
                         Image(systemName: "person.text.rectangle")
                             .foregroundStyle(ServeAITheme.cyan)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("COACH CALIBRATION")
+                            Text("Coach calibration")
                                 .font(ServeAITheme.body(.subheadline, size: 14, weight: .bold))
                             Text("Label phases and export ground truth")
                                 .font(ServeAITheme.body(.caption, size: 12))
@@ -67,8 +63,7 @@ struct ServeReportView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
                     .padding(.horizontal, 16)
-                    .background(ServeAITheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(ServeAITheme.separator) }
+                    .overlay(alignment: .top) { Rectangle().fill(ServeAITheme.separator).frame(height: 1) }
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Opens the internal coach annotation editor")
@@ -78,7 +73,7 @@ struct ServeReportView: View {
                         Image(systemName: "square.and.arrow.up.on.square")
                             .foregroundStyle(ServeAITheme.brand)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("SEND BLIND COACH TASK")
+                            Text("Send blind coach task")
                                 .font(ServeAITheme.body(.subheadline, size: 14, weight: .bold))
                             Text("Sign and export the exact analysis evidence")
                                 .font(ServeAITheme.body(.caption, size: 12))
@@ -90,8 +85,7 @@ struct ServeReportView: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
                     .padding(.horizontal, 16)
-                    .background(ServeAITheme.brand.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(ServeAITheme.brand.opacity(0.26)) }
+                    .overlay(alignment: .top) { Rectangle().fill(ServeAITheme.separator).frame(height: 1) }
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Creates a signed coach task JSON to use on another device")
@@ -201,16 +195,13 @@ struct ServeReportView: View {
 
     private var reportHeader: some View {
         HStack {
-            Text(analysis.source == .researchCapture ? "RESEARCH SAMPLE" : "THE VERDICT")
-                .font(ServeAITheme.display(.title3, size: 19))
+            Text(analysis.source == .researchCapture ? "Research sample" : "Serve report")
+                .font(ServeAITheme.display(.title2, size: 25))
             Spacer()
-            Button("DONE") { dismiss() }
-                .font(ServeAITheme.mono(.caption2, size: 10, bold: true))
-                .tracking(0.9)
-                .foregroundStyle(ServeAITheme.mutedInk)
-                .padding(.horizontal, 12)
-                .frame(minHeight: 44)
-                .background(ServeAITheme.surface, in: Capsule())
+            Button("Done") { dismiss() }
+                .font(ServeAITheme.body(.subheadline, size: 15, weight: .semibold))
+                .foregroundStyle(ServeAITheme.brand)
+                .frame(minWidth: 44, minHeight: 44)
         }
     }
 
@@ -219,7 +210,7 @@ struct ServeReportView: View {
             Image(systemName: "waveform.path.ecg.rectangle.fill")
                 .font(.system(size: 28, weight: .semibold))
                 .foregroundStyle(ServeAITheme.orange)
-            Text("NO COACHING WAS GENERATED")
+            Text("No coaching was generated")
                 .font(ServeAITheme.display(.headline, size: 18))
             Text("This rejected recording is stored only so authorized coaches can label input usability. The value 0 is not a serve score, and this sample is excluded from strengths, priorities, drills, and progress coaching.")
                 .font(ServeAITheme.body(.subheadline, size: 14))
@@ -227,46 +218,42 @@ struct ServeReportView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
-        .background(ServeAITheme.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(ServeAITheme.orange.opacity(0.30)) }
+        .background(ServeAITheme.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 
     private var verdictCard: some View {
-        VStack(spacing: 14) {
-            ScoreRing(score: analysis.overallScore, diameter: 196, lineWidth: 14)
-            HStack(spacing: 8) {
-                Text("\(grade) GRADE")
-                    .font(ServeAITheme.display(.subheadline, size: 15))
-                    .foregroundStyle(ServeAITheme.background)
-                    .padding(.horizontal, 13)
-                    .padding(.vertical, 8)
-                    .background(ServeAITheme.brand, in: Capsule())
-                EvidenceQualityBadge(confidence: analysis.confidence.level, contextLabel: "Video evidence")
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .bottom) {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text(analysis.overallScore, format: .number)
+                        .font(ServeAITheme.display(.largeTitle, size: 72))
+                        .tracking(-2)
+                        .contentTransition(.numericText())
+                    Text("/100")
+                        .font(ServeAITheme.body(.headline, size: 16, weight: .medium))
+                        .foregroundStyle(ServeAITheme.mutedInk)
+                }
+                Spacer()
+                Text("Grade \(grade)")
+                    .font(ServeAITheme.body(.subheadline, size: 14, weight: .semibold))
+                    .foregroundStyle(ServeAITheme.brand)
             }
+            EvidenceQualityBadge(confidence: analysis.confidence.level, contextLabel: "Video evidence")
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 22)
-        .padding(.horizontal, 18)
-        .background(ServeAITheme.heroGradient, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(ServeAITheme.brand.opacity(0.24))
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 28)
+        .overlay(alignment: .bottom) { Rectangle().fill(ServeAITheme.separator).frame(height: 1) }
     }
 
     private var coachCard: some View {
         HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "tennisball.fill")
-                .font(.system(size: 17, weight: .bold))
-                .foregroundStyle(ServeAITheme.background)
-                .frame(width: 36, height: 36)
-                .background(
-                    LinearGradient(colors: [ServeAITheme.brand, ServeAITheme.cyan], startPoint: .topLeading, endPoint: .bottomTrailing),
-                    in: Circle()
-                )
+            Image(systemName: "quote.opening")
+                .font(.system(size: 17, weight: .regular))
+                .foregroundStyle(ServeAITheme.brand)
+                .frame(width: 28, height: 28)
             VStack(alignment: .leading, spacing: 6) {
-                ServeAISectionLabel(text: "COACH AI SAYS")
+                ServeAISectionLabel(text: "Coach’s read")
                 Text(coachLine)
                     .font(ServeAITheme.body(.body, size: 14))
                     .foregroundStyle(ServeAITheme.ink)
@@ -274,9 +261,8 @@ struct ServeReportView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(ServeAITheme.surface, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(ServeAITheme.separator) }
+        .padding(.vertical, 20)
+        .overlay(alignment: .bottom) { Rectangle().fill(ServeAITheme.separator).frame(height: 1) }
     }
 
     private var grade: String {
@@ -317,9 +303,8 @@ struct ServeReportView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(analysis.source.requiresCautionBanner ? ServeAITheme.orange.opacity(0.12) : ServeAITheme.brand.opacity(0.09), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 16, style: .continuous).stroke((analysis.source.requiresCautionBanner ? ServeAITheme.orange : ServeAITheme.brand).opacity(0.28)) }
+        .padding(.vertical, 18)
+        .overlay(alignment: .bottom) { Rectangle().fill(ServeAITheme.separator).frame(height: 1) }
         .accessibilityElement(children: .combine)
     }
 
@@ -614,12 +599,13 @@ private struct ReportDisclosure<Content: View>: View {
             HStack(spacing: 12) {
                 Image(systemName: symbol).foregroundStyle(ServeAITheme.brand).frame(width: 26)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title.uppercased()).font(ServeAITheme.display(.headline, size: 16)).foregroundStyle(ServeAITheme.ink)
+                    Text(title).font(ServeAITheme.body(.headline, size: 17, weight: .semibold)).foregroundStyle(ServeAITheme.ink)
                     Text(subtitle).font(ServeAITheme.body(.caption, size: 12)).foregroundStyle(ServeAITheme.mutedInk).lineLimit(2)
                 }
             }
         }
-        .serveAISurface()
+        .padding(.vertical, 18)
+        .overlay(alignment: .top) { Rectangle().fill(ServeAITheme.separator).frame(height: 1) }
     }
 }
 

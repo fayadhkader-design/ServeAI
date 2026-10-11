@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-11T18:45:00-04:00",
+  "title": "Design System: ServeAI",
+  "extensions": {
+    "colorMeta": {
+      "court-night": { "role": "neutral", "displayName": "Court Night", "canonical": "#0B0D0B", "tonalRamp": ["#090A09", "#151815", "#282C27", "#414740", "#626960", "#8B9188", "#BEC2BA", "#F1F2EE"] },
+      "chalk": { "role": "neutral", "displayName": "Warm Chalk", "canonical": "#F2F1E8", "tonalRamp": ["#24241F", "#3A3932", "#56554B", "#747268", "#969489", "#B8B6AC", "#DAD8CF", "#F5F4EE"] },
+      "grass-note": { "role": "primary", "displayName": "Grass Note", "canonical": "#C5CFA8", "tonalRamp": ["#24291C", "#39402C", "#515B3E", "#6B7852", "#899668", "#A6B485", "#C5CFA8", "#ECF1DE"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Editorial Display", "purpose": "Human coaching moments and primary screen titles." },
+      "body": { "displayName": "Native Body", "purpose": "Instructions, actions, and coaching details." },
+      "label": { "displayName": "Native Label", "purpose": "Compact metadata and evidence labels." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "press", "value": "140ms ease-out", "purpose": "Subtle tactile compression on buttons." },
+      { "name": "analysis-trace", "value": "2800ms linear", "purpose": "Single active edge trace on the processing summary; disabled for Reduce Motion." }
+    ],
+    "breakpoints": [
+      { "name": "phone-reading-column", "value": "560pt max" },
+      { "name": "report-reading-column", "value": "720pt max" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single primary action for a screen.",
+      "html": "<button class=\"ds-primary\">Analyze a serve <span aria-hidden=\"true\">→</span></button>",
+      "css": ".ds-primary{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:56px;padding:0 18px;border:0;border-radius:12px;background:#C5CFA8;color:#131611;font:600 17px system-ui;transition:transform 140ms ease-out,opacity 140ms ease-out}.ds-primary:hover{opacity:.94}.ds-primary:active{transform:scale(.975)}.ds-primary:focus-visible{outline:2px solid #F2F1E8;outline-offset:3px}"
+    },
+    {
+      "name": "Editorial Section",
+      "kind": "custom",
+      "description": "The default flat reading group.",
+      "html": "<section class=\"ds-section\"><h3>Next practice</h3><p>One focused drill for the next basket.</p></section>",
+      "css": ".ds-section{padding:20px 0;border-top:1px solid rgba(242,241,232,.13);color:#F2F1E8;font-family:system-ui}.ds-section h3{margin:0 0 6px;font:600 20px ui-serif}.ds-section p{margin:0;color:#B1B3A9;font-size:14px;line-height:1.45}"
+    },
+    {
+      "name": "Evidence Label",
+      "kind": "chip",
+      "description": "A compact, explicit indicator of visual evidence quality.",
+      "html": "<span class=\"ds-evidence\">◐ Video evidence · Medium</span>",
+      "css": ".ds-evidence{display:inline-flex;align-items:center;padding:6px 9px;border-radius:6px;background:rgba(213,154,111,.10);color:#D59A6F;font:600 10px ui-monospace;letter-spacing:.01em}"
+    },
+    {
+      "name": "Score Readout",
+      "kind": "custom",
+      "description": "A flat editorial result, never a glowing progress ring.",
+      "html": "<div class=\"ds-score\"><strong>73</strong><span>/100</span></div>",
+      "css": ".ds-score{display:flex;align-items:baseline;color:#F2F1E8}.ds-score strong{font:600 72px/1 ui-serif;letter-spacing:-2px}.ds-score span{margin-left:6px;color:#B1B3A9;font:500 16px system-ui}"
+    },
+    {
+      "name": "Utility Surface",
+      "kind": "card",
+      "refersTo": "surface",
+      "description": "Reserved for controls or dense grouped content that genuinely needs containment.",
+      "html": "<div class=\"ds-surface\"><strong>Checking recording quality</strong><p>Framing, visibility, and pose tracking.</p></div>",
+      "css": ".ds-surface{padding:16px;border-radius:12px;background:#161915;color:#F2F1E8;font-family:system-ui}.ds-surface strong{font-size:15px}.ds-surface p{margin:6px 0 0;color:#B1B3A9;font-size:13px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Court-Side Journal",
+    "overview": "ServeAI should feel like a serious player’s annotated practice journal translated into a native iPhone interface: quiet, direct, and specific. It borrows the editorial hierarchy and material restraint of the Ouranos DTS system without copying its product structure. The interface makes the evidence and next coaching action easy to read; it never uses visual spectacle to imply scientific certainty.",
+    "keyCharacteristics": ["Editorial headings paired with plain, high-legibility body copy.", "One muted grass accent, used sparingly for actions and active state.", "Flat sections and hairline dividers instead of card-on-card scaffolding.", "Transparent evidence language and native iOS behavior."],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Grass Note carries the primary action and active analysis state; a screen does not add decorative competing accents.", "section": "colors" },
+      { "name": "The Sentence Case Rule", "body": "Headings, controls, and status copy use sentence case.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "A border, tonal fill, or whitespace is enough; never stack all three plus a shadow.", "section": "elevation" }
+    ],
+    "dos": ["Do foreground the next useful coaching action.", "Do show insufficient visibility instead of inventing precision.", "Do use whitespace and rules to create hierarchy.", "Do preserve native controls, accessibility semantics, and system navigation."],
+    "donts": ["Don't use neon gradients, glowing rings, gradient avatars, or multicolor progress tracks.", "Don't label deterministic or heuristic output as a personified Coach AI.", "Don't turn every row or section into a rounded card.", "Don't use all-caps hype copy as a substitute for hierarchy."]
+  }
+}

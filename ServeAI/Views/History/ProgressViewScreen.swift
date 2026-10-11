@@ -48,8 +48,8 @@ struct ProgressViewScreen: View {
             }
             .foregroundStyle(ServeAITheme.ink)
             .accessibilityLabel("Back")
-            Text("THE TREND")
-                .font(ServeAITheme.display(.title3, size: 19))
+            Text("Progress")
+                .font(ServeAITheme.display(.title2, size: 25))
             Spacer()
         }
     }
@@ -57,12 +57,12 @@ struct ProgressViewScreen: View {
     private var trendHero: some View {
         HStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: 6) {
-                ServeAISectionLabel(text: "CHANGE SINCE FIRST SERVE")
+                ServeAISectionLabel(text: "Change since first serve")
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(change >= 0 ? "+\(change)" : "\(change)")
                         .font(ServeAITheme.display(.largeTitle, size: 52))
                         .foregroundStyle(change >= 0 ? ServeAITheme.brand : ServeAITheme.pink)
-                    Text("PTS")
+                    Text("points")
                         .font(ServeAITheme.mono(.caption, size: 11, bold: true))
                         .tracking(0.8)
                         .foregroundStyle(ServeAITheme.mutedInk)
@@ -76,9 +76,8 @@ struct ProgressViewScreen: View {
                 .font(.system(size: 30, weight: .bold))
                 .foregroundStyle(change >= 0 ? ServeAITheme.brand : ServeAITheme.pink)
         }
-        .padding(18)
-        .background(ServeAITheme.heroGradient, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(ServeAITheme.brand.opacity(0.22)) }
+        .padding(.vertical, 22)
+        .overlay(alignment: .bottom) { Rectangle().fill(ServeAITheme.separator).frame(height: 1) }
     }
 
     private var chart: some View {
@@ -118,15 +117,13 @@ struct ProgressViewScreen: View {
             }
         }
         .frame(height: 260)
-        .padding(16)
-        .background(ServeAITheme.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(ServeAITheme.separator) }
+        .padding(.vertical, 16)
         .accessibilityLabel("Serve score trend. \(change >= 0 ? "Up" : "Down") \(abs(change)) points from first to latest analysis.")
     }
 
     private var recentScores: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ServeAISectionLabel(text: "RECENT READS")
+            ServeAISectionLabel(text: "Recent reads")
             ForEach(chronological.suffix(4).reversed()) { analysis in
                 HStack {
                     Text(analysis.createdAt, format: .dateTime.month(.abbreviated).day())
@@ -150,7 +147,7 @@ struct ProgressViewScreen: View {
 
     private var comparisonGuide: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ServeAISectionLabel(text: "COMPARE LIKE WITH LIKE")
+            ServeAISectionLabel(text: "Compare like with like")
             Label("Use the same camera angle", systemImage: "camera.viewfinder")
             Label("Keep distance and framing similar", systemImage: "arrow.left.and.right")
             Label("Compare videos with similar lighting", systemImage: "sun.max")
