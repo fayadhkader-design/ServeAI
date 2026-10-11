@@ -118,7 +118,7 @@ struct PilotCaptureSetupView: View {
 
             if slot.isFailureExample {
                 VStack(alignment: .leading, spacing: 6) {
-                    Label("INTENTIONAL FAILURE EXAMPLE", systemImage: "waveform.path.ecg.rectangle")
+                    Label("Intentional failure example", systemImage: "waveform.path.ecg.rectangle")
                         .font(ServeAITheme.mono(.caption2, size: 9, bold: true))
                         .foregroundStyle(ServeAITheme.orange)
                     Text("Introduce \(slot.recordingIssueTags.map { $0.title.lowercased() }.joined(separator: ", ")) during only part of the clip. Keep at least two seconds with the server independently visible so an honest evidence sequence can be encoded. This capture is for usability training, not coaching.")
