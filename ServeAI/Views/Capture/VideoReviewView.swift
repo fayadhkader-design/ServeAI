@@ -123,7 +123,7 @@ struct VideoReviewView: View {
                             if isPreparing {
                                 HStack { ProgressView(); Text("Encoding research sample…") }
                             } else {
-                                Label("SAVE FAILURE SAMPLE", systemImage: "waveform.path.ecg.rectangle")
+                                Label("Save failure sample", systemImage: "waveform.path.ecg.rectangle")
                             }
                         }
                         .buttonStyle(ServeAISecondaryButtonStyle())
