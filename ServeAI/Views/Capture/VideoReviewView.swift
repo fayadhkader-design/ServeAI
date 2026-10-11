@@ -121,7 +121,7 @@ struct VideoReviewView: View {
                             saveRejectedPilotSample()
                         } label: {
                             if isPreparing {
-                                HStack { ProgressView(); Text("ENCODING RESEARCH SAMPLE…") }
+                                HStack { ProgressView(); Text("Encoding research sample…") }
                             } else {
                                 Label("SAVE FAILURE SAMPLE", systemImage: "waveform.path.ecg.rectangle")
                             }
