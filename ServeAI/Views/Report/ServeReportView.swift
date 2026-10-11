@@ -469,7 +469,7 @@ private struct CoachTaskExportSheet: View {
                         if isCreating {
                             HStack { ProgressView(); Text("Signing task…") }
                         } else {
-                            Label("CREATE SIGNED TASK", systemImage: "signature")
+                            Label("Create signed task", systemImage: "signature")
                         }
                     }
                     .buttonStyle(ServeAIPrimaryButtonStyle())
